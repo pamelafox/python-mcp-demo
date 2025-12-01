@@ -9,7 +9,6 @@ A demonstration project showcasing Model Context Protocol (MCP) implementations 
 - [Python Scripts](#python-scripts)
 - [MCP Server Configuration](#mcp-server-configuration)
 - [Debugging](#debugging)
-- [License](#license)
 
 ## Prerequisites
 
@@ -25,15 +24,15 @@ A demonstration project showcasing Model Context Protocol (MCP) implementations 
 
 1. Install dependencies using `uv`:
 
-```bash
-uv sync
-```
+   ```bash
+   uv sync
+   ```
 
 2. Copy `.env-sample` to `.env` and configure your environment variables:
 
-```bash
-cp .env-sample .env
-```
+   ```bash
+   cp .env-sample .env
+   ```
 
 3. Edit `.env` with your API credentials. Choose one of the following providers by setting `API_HOST`:
    - `github` - GitHub Models (requires `GITHUB_TOKEN`)
@@ -43,14 +42,13 @@ cp .env-sample .env
 
 ## Python Scripts
 
-Run any script with: `uv run <script_name>`
+Run any script with: `uv run <script_path>`
 
-- **basic_mcp_http.py** - MCP server with HTTP transport on port 8000
-- **basic_mcp_stdio.py** - MCP server with stdio transport for VS Code integration
-- **langchainv1_mcp_http.py** - LangChain agent with MCP integration
-- **langchainv1_mcp_github.py** - LangChain tool filtering demo with GitHub MCP (requires `GITHUB_TOKEN`)
-- **openai_agents_tool_filtering.py** - OpenAI Agents SDK tool filtering demo with Microsoft Learn MCP
-- **agentframework_mcp_learn.py** - Microsoft Agent Framework integration with MCP
+- **servers/basic_mcp_http.py** - MCP server with HTTP transport on port 8000
+- **servers/basic_mcp_stdio.py** - MCP server with stdio transport for VS Code integration
+- **agents/langchainv1_mcp_http.py** - LangChain agent with MCP integration
+- **agents/langchainv1_mcp_github.py** - LangChain tool filtering demo with GitHub MCP (requires `GITHUB_TOKEN`)
+- **agents/agentframework_mcp_learn.py** - Microsoft Agent Framework integration with MCP
 
 ## MCP Server Configuration
 
@@ -63,22 +61,25 @@ The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is a deve
 **For stdio servers:**
 
 ```bash
-npx @modelcontextprotocol/inspector uv run basic_mcp_stdio.py
+npx @modelcontextprotocol/inspector uv run servers/basic_mcp_stdio.py
 ```
 
 **For HTTP servers:**
 
 1. Start the HTTP server:
-```bash
-uv run basic_mcp_http.py
-```
+
+   ```bash
+   uv run servers/basic_mcp_http.py
+   ```
 
 2. In another terminal, run the inspector:
-```bash
-npx @modelcontextprotocol/inspector http://localhost:8000/mcp
-```
+
+   ```bash
+   npx @modelcontextprotocol/inspector http://localhost:8000/mcp
+   ```
 
 The inspector provides a web interface to:
+
 - View available tools, resources, and prompts
 - Test tool invocations with custom parameters
 - Inspect server responses and errors
@@ -92,65 +93,37 @@ The `.vscode/mcp.json` file configures MCP servers for GitHub Copilot integratio
 
 - **expenses-mcp**: stdio transport server for production use
 - **expenses-mcp-debug**: stdio server with debugpy on port 5678
-- **expenses-mcp-http**: HTTP transport server at `http://localhost:8000/mcp`
-- **expenses-mcp-http-debug**: stdio server with debugpy on port 5679
+- **expenses-mcp-http**: HTTP transport server at `http://localhost:8000/mcp`. You must start this server manually with `uv run servers/basic_mcp_http.py` before using it.
 
 **Switching Servers:**
 
-Configure which server GitHub Copilot uses by selecting it in the Chat panel selecting the tools icon.
+Configure which server GitHub Copilot uses by opening the Chat panel, selecting the tools icon, and choosing the desired MCP server from the list.
+
+![Servers selection dialog](readme_serverselect.png)
+
+**Example input**
+
+Use a query like this to test the expenses MCP server:
+
+```
+Log expense for 50 bucks of pizza on my amex today
+```
+
+![Example GitHub Copilot Chat Input](readme_samplequery.png)
 
 ## Debugging
 
-### Debug Configurations
+The `.vscode/launch.json` provides one debug configuration:
 
-The `.vscode/launch.json` provides four debug configurations:
+**Attach to MCP Server (stdio)**: Attaches to server started via `expenses-mcp-debug` in `mcp.json`
 
-#### Launch Configurations (Start server with debugging)
+To debug an MCP server with GitHub Copilot Chat:
 
-1. **Launch MCP HTTP Server (Debug)**
-   - Directly starts `basic_mcp_http.py` with debugger attached
-   - Best for: Standalone testing and LangChain script debugging
-
-2. **Launch MCP stdio Server (Debug)**
-   - Directly starts `basic_mcp_stdio.py` with debugger attached
-   - Best for: Testing stdio communication
-
-#### Attach Configurations (Attach to running server)
-
-3. **Attach to MCP Server (stdio)** - Port 5678
-   - Attaches to server started via `expenses-mcp-debug` in `mcp.json`
-   - Best for: Debugging during GitHub Copilot Chat usage
-
-4. **Attach to MCP Server (HTTP)** - Port 5679
-   - Attaches to server started via `expenses-mcp-http-debug` in `mcp.json`
-   - Best for: Debugging HTTP server during Copilot usage
-
-### Debugging Workflow
-
-#### Option 1: Launch and Debug (Standalone)
-
-Use this approach for debugging with MCP Inspector or LangChain scripts:
-
-1. Set breakpoints in `basic_mcp_http.py` or `basic_mcp_stdio.py`
-2. Press `Cmd+Shift+D` to open Run and Debug
-3. Select "Launch MCP HTTP Server (Debug)" or "Launch MCP stdio Server (Debug)"
-4. Press `F5` or click the green play button
-5. Connect MCP Inspector or run your LangChain script to trigger breakpoints
-   - For HTTP: `npx @modelcontextprotocol/inspector http://localhost:8000/mcp`
-   - For stdio: `npx @modelcontextprotocol/inspector uv run basic_mcp_stdio.py` (start without debugger first)
-
-#### Option 2: Attach to Running Server (Copilot Integration)
-
-1. Set breakpoints in your MCP server file
-1. Start the debug server via `mcp.json` configuration:
-   - Select `expenses-mcp-debug` or `expenses-mcp-http-debug`
+1. Set breakpoints in the MCP server code in `servers/basic_mcp_stdio.py`
+1. Start the debug server via `mcp.json` configuration by selecting `expenses-mcp-debug`
 1. Press `Cmd+Shift+D` to open Run and Debug
-1. Select appropriate "Attach to MCP Server" configuration
-1. Press `F5` to attach
-1. Select correct expense mcp server in GitHub Copilot Chat tools
+1. Select "Attach to MCP Server (stdio)" configuration
+1. Press `F5` or the play button to start the debugger
+1. Select the expenses-mcp-debug server in GitHub Copilot Chat tools
 1. Use GitHub Copilot Chat to trigger the MCP tools
 1. Debugger pauses at breakpoints
-
-## License
-
-MIT
