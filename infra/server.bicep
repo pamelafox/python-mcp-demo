@@ -12,6 +12,8 @@ param openAiEndpoint string
 param cosmosDbAccount string
 param cosmosDbDatabase string
 param cosmosDbContainer string
+param applicationInsightsConnectionString string = ''
+
 
 resource serverIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: identityName
@@ -57,6 +59,11 @@ module app 'core/host/container-app-upsert.bicep' = {
       {
         name: 'AZURE_COSMOSDB_CONTAINER'
         value: cosmosDbContainer
+      }
+      // We typically store sensitive values in secrets, but App Insights connection strings are not considered highly sensitive
+      {
+        name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+        value: applicationInsightsConnectionString
       }
     ]
     targetPort: 8000

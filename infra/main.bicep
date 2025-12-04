@@ -157,6 +157,20 @@ module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0
   }
 }
 
+// Application Insights for telemetry
+module applicationInsights 'br/public:avm/res/insights/component:0.4.2' = if (useMonitoring) {
+  name: 'applicationinsights'
+  scope: resourceGroup
+  params: {
+    name: '${prefix}-appinsights'
+    location: location
+    tags: tags
+    workspaceResourceId: logAnalyticsWorkspace.?outputs.resourceId!
+    kind: 'web'
+    applicationType: 'web'
+  }
+}
+
 // https://learn.microsoft.com/en-us/azure/container-apps/firewall-integration?tabs=consumption-only
 module containerAppsNSG 'br/public:avm/res/network/network-security-group:0.5.1' = if (useVnet) {
   name: 'containerAppsNSG'
@@ -671,6 +685,7 @@ module server 'server.bicep' = {
     cosmosDbAccount: cosmosDb.outputs.name
     cosmosDbDatabase: cosmosDbDatabaseName
     cosmosDbContainer: cosmosDbContainerName
+    applicationInsightsConnectionString: useMonitoring ? applicationInsights!.outputs.connectionString : ''
     exists: serverExists
   }
 }
@@ -773,3 +788,6 @@ output AZURE_COSMOSDB_ACCOUNT string = cosmosDb.outputs.name
 output AZURE_COSMOSDB_ENDPOINT string = cosmosDb.outputs.endpoint
 output AZURE_COSMOSDB_DATABASE string = cosmosDbDatabaseName
 output AZURE_COSMOSDB_CONTAINER string = cosmosDbContainerName
+
+// We typically do not output sensitive values, but App Insights connection strings are not considered highly sensitive
+output APPLICATIONINSIGHTS_CONNECTION_STRING string = useMonitoring ? applicationInsights!.outputs.connectionString : ''
