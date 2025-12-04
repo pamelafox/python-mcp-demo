@@ -26,7 +26,9 @@ RUNNING_IN_PRODUCTION = os.getenv("RUNNING_IN_PRODUCTION", "false").lower() == "
 AZURE_CLIENT_ID = os.getenv("AZURE_CLIENT_ID", "")
 
 # Keycloak authentication configuration
-KEYCLOAK_REALM_URL = os.environ["KEYCLOAK_REALM_URL"]  # e.g., https://routeconfig.<env>.azurecontainerapps.io/auth/realms/mcp
+KEYCLOAK_REALM_URL = os.environ[
+    "KEYCLOAK_REALM_URL"
+]  # e.g., https://routeconfig.<env>.azurecontainerapps.io/auth/realms/mcp
 MCP_SERVER_BASE_URL = os.environ["MCP_SERVER_BASE_URL"]  # e.g., https://routeconfig.<env>.azurecontainerapps.io
 MCP_SERVER_AUDIENCE = os.getenv("MCP_SERVER_AUDIENCE", "mcp-server")
 

@@ -35,12 +35,10 @@ load_dotenv(override=True)
 
 # MCP Server and Keycloak configuration
 MCP_SERVER_URL = os.getenv(
-    "MCP_SERVER_URL",
-    "https://mcp-gps-key-n7pc5ej-ca.ashymeadow-ae27942e.eastus2.azurecontainerapps.io/mcp"
+    "MCP_SERVER_URL", "https://mcp-gps-key-n7pc5ej-ca.ashymeadow-ae27942e.eastus2.azurecontainerapps.io/mcp"
 )
 KEYCLOAK_REALM_URL = os.getenv(
-    "KEYCLOAK_REALM_URL",
-    "https://mcp-gps-key-n7pc5ej-kc.ashymeadow-ae27942e.eastus2.azurecontainerapps.io/realms/mcp"
+    "KEYCLOAK_REALM_URL", "https://mcp-gps-key-n7pc5ej-kc.ashymeadow-ae27942e.eastus2.azurecontainerapps.io/realms/mcp"
 )
 
 # Configure language model based on API_HOST
@@ -74,9 +72,9 @@ else:
 async def register_client_via_dcr() -> tuple[str, str]:
     """Register a new client dynamically using Keycloak's DCR endpoint."""
     dcr_url = f"{KEYCLOAK_REALM_URL}/clients-registrations/openid-connect"
-    
+
     logger.info("📝 Registering client via DCR...")
-    
+
     async with httpx.AsyncClient() as client:
         response = await client.post(
             dcr_url,
@@ -87,14 +85,14 @@ async def register_client_via_dcr() -> tuple[str, str]:
             },
             headers={"Content-Type": "application/json"},
         )
-        
+
         if response.status_code not in (200, 201):
             raise Exception(f"DCR failed: {response.status_code} - {response.text}")
-        
+
         data = response.json()
         client_id = data["client_id"]
         client_secret = data["client_secret"]
-        
+
         logger.info(f"✅ Registered client: {client_id[:20]}...")
         return client_id, client_secret
 
@@ -102,9 +100,9 @@ async def register_client_via_dcr() -> tuple[str, str]:
 async def get_keycloak_token(client_id: str, client_secret: str) -> str:
     """Get an access token from Keycloak using client_credentials grant."""
     token_url = f"{KEYCLOAK_REALM_URL}/protocol/openid-connect/token"
-    
+
     logger.info("🔑 Getting access token from Keycloak...")
-    
+
     async with httpx.AsyncClient() as client:
         response = await client.post(
             token_url,
@@ -115,14 +113,14 @@ async def get_keycloak_token(client_id: str, client_secret: str) -> str:
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
-        
+
         if response.status_code != 200:
             raise Exception(f"Failed to get token: {response.status_code} - {response.text}")
-        
+
         token_data = response.json()
         access_token = token_data["access_token"]
         expires_in = token_data.get("expires_in", "unknown")
-        
+
         logger.info(f"✅ Got access token (expires in {expires_in}s)")
         return access_token
 
@@ -134,9 +132,9 @@ async def run_agent() -> None:
     # Register client via DCR and get token
     client_id, client_secret = await register_client_via_dcr()
     access_token = await get_keycloak_token(client_id, client_secret)
-    
+
     logger.info(f"📡 Connecting to MCP server: {MCP_SERVER_URL}")
-    
+
     # Initialize MCP client with Bearer token auth
     client = MultiServerMCPClient(
         {
@@ -154,7 +152,7 @@ async def run_agent() -> None:
     logger.info("🔧 Getting available tools...")
     tools = await client.get_tools()
     logger.info(f"✅ Found {len(tools)} tools: {[t.name for t in tools]}")
-    
+
     agent = create_agent(base_model, tools)
 
     # Prepare query with context
@@ -172,7 +170,7 @@ async def run_agent() -> None:
     logger.info("=" * 60)
     logger.info("📊 Agent Response:")
     logger.info("=" * 60)
-    
+
     final_message = response["messages"][-1]
     print(final_message.content)
 
@@ -187,7 +185,7 @@ async def main():
     print(f"  LLM Host:    {API_HOST}")
     print("  Auth:        Dynamic Client Registration (DCR)")
     print()
-    
+
     await run_agent()
 
 

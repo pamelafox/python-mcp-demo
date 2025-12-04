@@ -28,10 +28,6 @@
 				"servers/basic_mcp_stdio.py"
 			]
 		},
-		"auth-expenses": {
-			"url": "https://mcp-gps-key-n7pc5ej-ca.ashymeadow-ae27942e.eastus2.azurecontainerapps.io/mcp",
-			"type": "http"
-		}
 	},
 	"inputs": []
 }
