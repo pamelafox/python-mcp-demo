@@ -70,7 +70,6 @@ resource httpRouteConfig 'Microsoft.App/managedEnvironments/httpRouteConfigs@202
       }
     ]
   }
-  // Note: dependsOn not needed - 'existing' resources create implicit dependencies
 }
 
 output fqdn string = httpRouteConfig.properties.fqdn

@@ -18,7 +18,7 @@ services:
     language: docker
     host: containerapp
     docker:
-      path: ./infra/Dockerfile.keycloak
+      path: ./keycloak/Dockerfile
       context: .
   agent:
     project: .

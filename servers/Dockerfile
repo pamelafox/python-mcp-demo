@@ -37,4 +37,4 @@ ENV PATH="/code/.venv/bin:$PATH"
 
 EXPOSE 8000
 
-ENTRYPOINT ["uvicorn", "keycloak_deployed_mcp:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["uvicorn", "deployed_mcp:app", "--host", "0.0.0.0", "--port", "8000"]

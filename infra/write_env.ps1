@@ -12,7 +12,9 @@ Add-Content -Path $ENV_FILE_PATH -Value "AZURE_COSMOSDB_ACCOUNT=$(azd env get-va
 Add-Content -Path $ENV_FILE_PATH -Value "AZURE_COSMOSDB_DATABASE=$(azd env get-value AZURE_COSMOSDB_DATABASE)"
 Add-Content -Path $ENV_FILE_PATH -Value "AZURE_COSMOSDB_CONTAINER=$(azd env get-value AZURE_COSMOSDB_CONTAINER)"
 Add-Content -Path $ENV_FILE_PATH -Value "APPLICATIONINSIGHTS_CONNECTION_STRING=$(azd env get-value APPLICATIONINSIGHTS_CONNECTION_STRING)"
-# Use direct Keycloak URL for token requests (issuer must match what MCP server expects)
-Add-Content -Path $ENV_FILE_PATH -Value "KEYCLOAK_REALM_URL=$(azd env get-value KEYCLOAK_DIRECT_URL)/realms/mcp"
+$KEYCLOAK_REALM_URL = azd env get-value KEYCLOAK_REALM_URL 2>$null
+if ($KEYCLOAK_REALM_URL -and $KEYCLOAK_REALM_URL -ne "") {
+    Add-Content -Path $ENV_FILE_PATH -Value "KEYCLOAK_REALM_URL=$KEYCLOAK_REALM_URL"
+}
 Add-Content -Path $ENV_FILE_PATH -Value "MCP_SERVER_URL=$(azd env get-value MCP_SERVER_URL)/mcp"
 Add-Content -Path $ENV_FILE_PATH -Value "API_HOST=azure"

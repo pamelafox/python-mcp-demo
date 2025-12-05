@@ -1,7 +1,9 @@
+# Keycloak container with pre-built themes and realm import
+# Based on: https://www.keycloak.org/server/containers
 FROM quay.io/keycloak/keycloak:26.0 AS builder
 
 # Copy the MCP realm configuration for import
-COPY infra/keycloak-realm.json /opt/keycloak/data/import/mcp-realm.json
+COPY keycloak/realm.json /opt/keycloak/data/import/mcp-realm.json
 
 # Build Keycloak to pre-compile themes (fixes cache hash mismatch across replicas)
 RUN /opt/keycloak/bin/kc.sh build

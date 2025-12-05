@@ -15,6 +15,7 @@ A demonstration project showcasing Model Context Protocol (MCP) implementations 
 - [Run local Agents <-> MCP](#run-local-agents---mcp)
 - [Deploy to Azure](#deploy-to-azure)
 - [Deploy to Azure with private networking](#deploy-to-azure-with-private-networking)
+- [Deploy to Azure with Keycloak authentication](#deploy-to-azure-with-keycloak-authentication)
 
 ## Getting started
 
@@ -276,3 +277,122 @@ When using VNet configuration, additional Azure resources are provisioned:
 - **Virtual Network**: Pay-as-you-go tier. Costs based on data processed. [Pricing](https://azure.microsoft.com/pricing/details/virtual-network/)
 - **Azure Private DNS Resolver**: Pricing per month, endpoints, and zones. [Pricing](https://azure.microsoft.com/pricing/details/dns/)
 - **Azure Private Endpoints**: Pricing per hour per endpoint. [Pricing](https://azure.microsoft.com/pricing/details/private-link/)
+
+---
+
+## Deploy to Azure with Keycloak authentication
+
+This project supports deploying with OAuth 2.0 authentication using Keycloak as the identity provider, implementing the [MCP OAuth specification](https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization) with Dynamic Client Registration (DCR).
+
+### Architecture
+
+```text
+┌─────────────┐     1. DCR + Token      ┌─────────────┐
+│  LangChain  │ ──────────────────────► │  Keycloak   │
+│   Agent     │ ◄────────────────────── │  (direct)   │
+│             │                         └─────────────┘
+│             │     2. MCP + Bearer
+│             │ ──────────────────────► ┌─────────────┐
+│             │ ◄────────────────────── │  mcproutes  │ → MCP Server
+└─────────────┘                         └─────────────┘
+```
+
+### What gets deployed
+
+| Component | Description |
+|-----------|-------------|
+| **Keycloak Container App** | Keycloak 26.0 with pre-configured realm |
+| **HTTP Route Configuration** | Rule-based routing: `/auth/*` → Keycloak, `/*` → MCP Server |
+| **OAuth-protected MCP Server** | FastMCP with JWT validation against Keycloak's JWKS endpoint |
+
+### Deployment steps
+
+1. Set the Keycloak admin password (required):
+
+   ```bash
+   azd env set KEYCLOAK_ADMIN_PASSWORD "YourSecurePassword123!"
+   ```
+
+2. Optionally customize the realm name (default: `mcp`):
+
+   ```bash
+   azd env set KEYCLOAK_REALM_NAME "mcp"
+   ```
+
+3. Deploy to Azure:
+
+   ```bash
+   azd up
+   ```
+
+   This will create the Azure Container Apps environment, deploy Keycloak with the pre-configured realm, deploy the MCP server with OAuth validation, and configure HTTP route-based routing.
+
+4. Verify deployment by checking the outputs:
+
+   ```bash
+   azd env get-value MCP_SERVER_URL
+   azd env get-value KEYCLOAK_DIRECT_URL
+   azd env get-value KEYCLOAK_ADMIN_CONSOLE
+   ```
+
+5. Visit the Keycloak admin console to verify the realm is configured:
+
+   ```text
+   https://<your-mcproutes-url>/auth/admin
+   ```
+
+   Login with `admin` and your configured password.
+
+### Testing with the LangChain agent
+
+1. Generate the local environment file:
+
+   ```bash
+   ./infra/write_env.sh
+   ```
+
+   This creates `.env` with `KEYCLOAK_REALM_URL`, `MCP_SERVER_URL`, and Azure OpenAI settings.
+
+2. Run the agent:
+
+   ```bash
+   uv run agents/langchainv1_keycloak.py
+   ```
+
+   Expected output:
+
+   ```text
+   ============================================================
+   LangChain Agent with Keycloak-Protected MCP Server
+   ============================================================
+
+   Configuration:
+     MCP Server:  https://mcproutes.<env>.azurecontainerapps.io/mcp
+     Keycloak:    https://mcp-<name>-kc.<env>.azurecontainerapps.io/realms/mcp
+     LLM Host:    azure
+     Auth:        Dynamic Client Registration (DCR)
+
+   [11:40:48] INFO     📝 Registering client via DCR...
+              INFO     ✅ Registered client: caef6f47-0243-474d-b...
+              INFO     🔑 Getting access token from Keycloak...
+              INFO     ✅ Got access token (expires in 300s)
+              INFO     📡 Connecting to MCP server...
+              INFO     🔧 Getting available tools...
+              INFO     ✅ Found 1 tools: ['add_expense']
+              INFO     💬 User query: Add an expense: yesterday I bought a laptop...
+              ...
+              INFO     📊 Agent Response:
+   The expense of $1200 for the laptop purchase has been successfully recorded.
+   ```
+
+### Known limitations (demo trade-offs)
+
+| Item | Current | Production Recommendation | Why |
+|------|---------|---------------------------|-----|
+| Keycloak mode | `start-dev` | `start` with proper config | Dev mode has relaxed security defaults |
+| Database | H2 in-memory | PostgreSQL | H2 doesn't persist data across restarts |
+| Replicas | 1 (due to H2) | Multiple with shared DB | H2 is in-memory, can't share state |
+| Keycloak access | Public (direct URL) | Internal only via routes | Route URL isn't known until after deployment |
+| DCR | Open (anonymous) | Require initial access token | Any client can register without auth |
+
+> **Note:** Keycloak must be publicly accessible because its URL is dynamically generated by Azure. Token issuer validation requires a known URL, but the mcproutes URL isn't available until after deployment. Using a custom domain would fix this.

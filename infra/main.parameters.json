@@ -26,6 +26,9 @@
       "usePrivateLogAnalytics": {
         "value": "${USE_PRIVATE_LOGANALYTICS=false}"
       },
+      "useKeycloak": {
+        "value": "${USE_KEYCLOAK=false}"
+      },
       "serverExists": {
         "value": "${SERVICE_SERVER_RESOURCE_EXISTS=false}"
       },
@@ -44,8 +47,8 @@
       "keycloakRealmName": {
         "value": "${KEYCLOAK_REALM_NAME=mcp}"
       },
-      "mcpServerAudience": {
-        "value": "${MCP_SERVER_AUDIENCE=mcp-server}"
+      "keycloakMcpServerAudience": {
+        "value": "${KEYCLOAK_MCP_SERVER_AUDIENCE=mcp-server}"
       }
     }
   }

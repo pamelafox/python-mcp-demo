@@ -14,7 +14,10 @@ from azure.identity.aio import DefaultAzureCredential, ManagedIdentityCredential
 from azure.monitor.opentelemetry import configure_azure_monitor
 from dotenv import load_dotenv
 from fastmcp import FastMCP
+from fastmcp.server.auth import RemoteAuthProvider
+from fastmcp.server.auth.providers.jwt import JWTVerifier
 from opentelemetry.instrumentation.starlette import StarletteInstrumentor
+from pydantic import AnyHttpUrl
 from starlette.responses import JSONResponse
 
 try:
@@ -33,12 +36,12 @@ logger.setLevel(logging.INFO)
 
 # Configure OpenTelemetry tracing, either via Azure Monitor or Logfire
 # We don't support both at the same time due to potential conflicts with tracer providers
+settings.tracing_implementation = "opentelemetry"  # Ensure Azure SDK always uses OpenTelemetry tracing
 if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
     logger.info("Setting up Azure Monitor instrumentation")
     configure_azure_monitor()
 elif os.getenv("LOGFIRE_PROJECT_NAME"):
     logger.info("Setting up Logfire instrumentation")
-    settings.tracing_implementation = "opentelemetry"  # Configure Azure SDK to use OpenTelemetry tracing
     logfire.configure(service_name="expenses-mcp", send_to_logfire=True)
 
 # Cosmos DB configuration from environment variables
@@ -46,6 +49,27 @@ AZURE_COSMOSDB_ACCOUNT = os.environ["AZURE_COSMOSDB_ACCOUNT"]
 AZURE_COSMOSDB_DATABASE = os.environ["AZURE_COSMOSDB_DATABASE"]
 AZURE_COSMOSDB_CONTAINER = os.environ["AZURE_COSMOSDB_CONTAINER"]
 AZURE_CLIENT_ID = os.getenv("AZURE_CLIENT_ID", "")
+
+# Optional: Keycloak authentication (enabled if KEYCLOAK_REALM_URL is set)
+KEYCLOAK_REALM_URL = os.getenv("KEYCLOAK_REALM_URL")
+MCP_SERVER_BASE_URL = os.getenv("MCP_SERVER_BASE_URL")
+KEYCLOAK_MCP_SERVER_AUDIENCE = os.getenv("KEYCLOAK_MCP_SERVER_AUDIENCE", "mcp-server")
+
+auth = None
+if KEYCLOAK_REALM_URL and MCP_SERVER_BASE_URL:
+    token_verifier = JWTVerifier(
+        jwks_uri=f"{KEYCLOAK_REALM_URL}/protocol/openid-connect/certs",
+        issuer=KEYCLOAK_REALM_URL,
+        audience=KEYCLOAK_MCP_SERVER_AUDIENCE,
+    )
+    auth = RemoteAuthProvider(
+        token_verifier=token_verifier,
+        authorization_servers=[AnyHttpUrl(KEYCLOAK_REALM_URL)],
+        base_url=MCP_SERVER_BASE_URL,
+    )
+    logger.info(f"Keycloak auth enabled: realm={KEYCLOAK_REALM_URL}, audience={KEYCLOAK_MCP_SERVER_AUDIENCE}")
+else:
+    logger.info("No authentication configured (set KEYCLOAK_REALM_URL and MCP_SERVER_BASE_URL to enable)")
 
 # Configure Cosmos DB client and container
 if RUNNING_IN_PRODUCTION and AZURE_CLIENT_ID:
@@ -61,7 +85,7 @@ cosmos_db = cosmos_client.get_database_client(AZURE_COSMOSDB_DATABASE)
 cosmos_container = cosmos_db.get_container_client(AZURE_COSMOSDB_CONTAINER)
 logger.info(f"Connected to Cosmos DB: {AZURE_COSMOSDB_ACCOUNT}")
 
-mcp = FastMCP("Expenses Tracker")
+mcp = FastMCP("Expenses Tracker", auth=auth)
 mcp.add_middleware(OpenTelemetryMiddleware("ExpensesMCP"))
 
 

@@ -46,18 +46,21 @@ param useVnet bool = false
 @description('Flag to enable or disable public ingress')
 param usePrivateIngress bool = false
 
+@description('Flag to enable or disable Keycloak authentication for the MCP server')
+param useKeycloak bool = false
+
 @description('Keycloak admin username')
 param keycloakAdminUser string = 'admin'
 
 @secure()
-@description('Keycloak admin password - must be set via azd env')
-param keycloakAdminPassword string
+@description('Keycloak admin password - required when useKeycloak is true')
+param keycloakAdminPassword string = ''
 
 @description('Keycloak realm name for MCP authentication')
 param keycloakRealmName string = 'mcp'
 
-@description('Audience claim for MCP server tokens')
-param mcpServerAudience string = 'mcp-server'
+@description('Audience claim for MCP server tokens (only used when useKeycloak is true)')
+param keycloakMcpServerAudience string = 'mcp-server'
 
 @description('Flag to restrict ACR public network access (requires VPN for local image push when true)')
 param usePrivateAcr bool = false
@@ -707,10 +710,10 @@ module server 'server.bicep' = {
     cosmosDbContainer: cosmosDbContainerName
     applicationInsightsConnectionString: useMonitoring ? applicationInsights!.outputs.connectionString : ''
     exists: serverExists
-    // Keycloak authentication configuration
-    keycloakRealmUrl: '${keycloak.outputs.uri}/realms/${keycloakRealmName}'
-    mcpServerBaseUrl: 'https://mcproutes.${containerApps.outputs.defaultDomain}'
-    mcpServerAudience: mcpServerAudience
+    // Keycloak authentication configuration (only when enabled)
+    keycloakRealmUrl: useKeycloak ? '${keycloak!.outputs.uri}/realms/${keycloakRealmName}' : ''
+    mcpServerBaseUrl: useKeycloak ? 'https://mcproutes.${containerApps.outputs.defaultDomain}' : ''
+    keycloakMcpServerAudience: keycloakMcpServerAudience
   }
 }
 
@@ -727,13 +730,13 @@ module agent 'agent.bicep' = {
     containerRegistryName: containerApps.outputs.registryName
     openAiDeploymentName: openAiDeploymentName
     openAiEndpoint: openAi.outputs.endpoint
-    mcpServerUrl: 'https://mcproutes.${containerApps.outputs.defaultDomain}/mcp'
-    keycloakRealmUrl: '${keycloak.outputs.uri}/realms/${keycloakRealmName}'
+    mcpServerUrl: useKeycloak ? 'https://mcproutes.${containerApps.outputs.defaultDomain}/mcp' : '${server.outputs.uri}/mcp'
+    keycloakRealmUrl: useKeycloak ? '${keycloak.outputs.uri}/realms/${keycloakRealmName}' : ''
     exists: agentExists
   }
 }
 
-// Keycloak authentication server
+// Keycloak authentication server (always deployed, but only used when useKeycloak is true)
 module keycloak 'keycloak.bicep' = {
   name: 'keycloak'
   scope: resourceGroup
@@ -745,19 +748,19 @@ module keycloak 'keycloak.bicep' = {
     containerAppsEnvironmentName: containerApps.outputs.environmentName
     containerRegistryName: containerApps.outputs.registryName
     keycloakAdminUser: keycloakAdminUser
-    keycloakAdminPassword: keycloakAdminPassword
+    keycloakAdminPassword: useKeycloak ? keycloakAdminPassword : 'placeholder-not-used'
     exists: keycloakExists
   }
 }
 
-// HTTP Route configuration for rule-based routing
-module httpRoutes 'http-routes.bicep' = {
+// HTTP Route configuration for rule-based routing (only when Keycloak is enabled)
+module httpRoutes 'http-routes.bicep' = if (useKeycloak) {
   name: 'http-routes'
   scope: resourceGroup
   params: {
     containerAppsEnvironmentName: containerApps.outputs.environmentName
     mcpServerAppName: server.outputs.name
-    keycloakAppName: keycloak.outputs.name
+    keycloakAppName: keycloak!.outputs.name
   }
 }
 
@@ -849,10 +852,10 @@ output AZURE_COSMOSDB_CONTAINER string = cosmosDbContainerName
 // We typically do not output sensitive values, but App Insights connection strings are not considered highly sensitive
 output APPLICATIONINSIGHTS_CONNECTION_STRING string = useMonitoring ? applicationInsights!.outputs.connectionString : ''
 
-// Keycloak and MCP Server routing outputs
-output HTTP_ROUTES_URL string = httpRoutes.outputs.routeConfigUrl
-output KEYCLOAK_URL string = '${httpRoutes.outputs.routeConfigUrl}/auth'
-output KEYCLOAK_REALM_URL string = '${httpRoutes.outputs.routeConfigUrl}/auth/realms/${keycloakRealmName}'
-output MCP_SERVER_URL string = httpRoutes.outputs.routeConfigUrl
-output KEYCLOAK_ADMIN_CONSOLE string = '${httpRoutes.outputs.routeConfigUrl}/auth/admin'
+// Keycloak and MCP Server routing outputs (only populated when useKeycloak is true)
+output HTTP_ROUTES_URL string = useKeycloak ? httpRoutes!.outputs.routeConfigUrl : ''
+output KEYCLOAK_URL string = useKeycloak ? '${httpRoutes!.outputs.routeConfigUrl}/auth' : ''
+output KEYCLOAK_REALM_URL string = useKeycloak ? '${httpRoutes!.outputs.routeConfigUrl}/auth/realms/${keycloakRealmName}' : ''
+output MCP_SERVER_URL string = useKeycloak ? httpRoutes!.outputs.routeConfigUrl : server.outputs.uri
+output KEYCLOAK_ADMIN_CONSOLE string = useKeycloak ? '${httpRoutes!.outputs.routeConfigUrl}/auth/admin' : ''
 output KEYCLOAK_DIRECT_URL string = keycloak.outputs.uri
