@@ -51,9 +51,7 @@ async def register_client_via_dcr(keycloak_realm_url: str, client_name_prefix: s
 
         if response.status_code not in (200, 201):
             raise RuntimeError(
-                f"DCR registration failed at {dcr_url}: "
-                f"status={response.status_code}, "
-                f"response={response.text}"
+                f"DCR registration failed at {dcr_url}: status={response.status_code}, response={response.text}"
             )
 
         data = response.json()
@@ -92,9 +90,7 @@ async def get_keycloak_token(keycloak_realm_url: str, client_id: str, client_sec
 
         if response.status_code != 200:
             raise RuntimeError(
-                f"Token request failed at {token_url}: "
-                f"status={response.status_code}, "
-                f"response={response.text}"
+                f"Token request failed at {token_url}: status={response.status_code}, response={response.text}"
             )
 
         token_data = response.json()
@@ -102,9 +98,7 @@ async def get_keycloak_token(keycloak_realm_url: str, client_id: str, client_sec
         return token_data["access_token"]
 
 
-async def get_auth_headers(
-    keycloak_realm_url: str | None, client_name_prefix: str = "agent"
-) -> dict[str, str] | None:
+async def get_auth_headers(keycloak_realm_url: str | None, client_name_prefix: str = "agent") -> dict[str, str] | None:
     """
     Get authorization headers if Keycloak is configured.
 
