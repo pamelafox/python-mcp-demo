@@ -191,7 +191,7 @@ You can use the [.NET Aspire Dashboard](https://learn.microsoft.com/dotnet/aspir
    ```
 
 
-3. View the dashboard at: http://localhost:18888
+4. View the dashboard at: http://localhost:18888
 
 ---
 
