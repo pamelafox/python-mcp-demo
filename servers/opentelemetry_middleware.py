@@ -18,8 +18,15 @@ from opentelemetry.trace import Status, StatusCode
 
 
 def configure_aspire_dashboard(service_name: str = "expenses-mcp"):
-    """Configure OpenTelemetry to send telemetry to the Aspire standalone dashboard."""
-    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+    """Configure OpenTelemetry to send telemetry to the Aspire standalone dashboard.
+
+    Requires the OTEL_EXPORTER_OTLP_ENDPOINT environment variable to be set.
+    """
+    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+    if not otlp_endpoint:
+        raise ValueError(
+            "OTEL_EXPORTER_OTLP_ENDPOINT environment variable must be set to configure telemetry export."
+        )
 
     # Create resource with service name
     resource = Resource.create({"service.name": service_name})
