@@ -28,6 +28,10 @@
 				"servers/basic_mcp_stdio.py"
 			]
 		},
+		"my-mcp-server-e53825c5": {
+			"url": "http://localhost:8000/mcp",
+			"type": "http"
+		}
 	},
 	"inputs": []
 }

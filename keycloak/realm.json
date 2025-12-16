@@ -14,39 +14,41 @@
   "accessCodeLifespan": 60,
   "accessCodeLifespanUserAction": 300,
   "accessCodeLifespanLogin": 1800,
-  "clientScopes": [
+  "clients": [
     {
-      "name": "mcp-server",
-      "description": "MCP Server audience scope for DCR clients",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "false"
-      },
-      "protocolMappers": [
+      "clientId": "vscode-mcp-client",
+      "name": "VS Code MCP Client",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "redirectUris": [
+        "http://127.0.0.1/*",
+        "http://localhost/*",
+        "https://vscode.dev/redirect",
+        "https://insiders.vscode.dev/redirect"
+      ],
+      "webOrigins": ["+"]
+    }
+  ],
+  "users": [
+    {
+      "username": "testuser",
+      "enabled": true,
+      "email": "testuser@example.com",
+      "firstName": "Test",
+      "lastName": "User",
+      "credentials": [
         {
-          "name": "mcp-server-audience",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.custom.audience": "mcp-server",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "introspection.token.claim": "true"
-          }
+          "type": "password",
+          "value": "testpass",
+          "temporary": false
         }
       ]
     }
-  ],
-  "defaultDefaultClientScopes": [
-    "mcp-server",
-    "profile",
-    "email",
-    "roles",
-    "web-origins",
-    "acr",
-    "basic"
   ],
   "components": {
     "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy": [
@@ -57,18 +59,20 @@
         "config": {
           "host-sending-registration-request-must-match": ["false"],
           "client-uris-must-match": ["true"],
-          "trusted-hosts": ["localhost", "127.0.0.1", "*.azurecontainerapps.io"]
+          "trusted-hosts": [
+            "localhost",
+            "127.0.0.1",
+            "172.17.0.1",
+            "host.docker.internal",
+            "vscode.dev",
+            "insiders.vscode.dev",
+            "code.visualstudio.com"
+          ]
         }
       },
       {
         "name": "Consent Required",
         "providerId": "consent-required",
-        "subType": "anonymous",
-        "config": {}
-      },
-      {
-        "name": "Full Scope Disabled",
-        "providerId": "scope",
         "subType": "anonymous",
         "config": {}
       },
@@ -93,7 +97,10 @@
             "oidc-usermodel-property-mapper",
             "saml-role-idp-mapper",
             "saml-user-property-idp-mapper",
-            "oidc-sha256-pairwise-sub-mapper"
+            "oidc-sha256-pairwise-sub-mapper",
+            "oidc-sub-mapper",
+            "oidc-usersessionmodel-note-mapper",
+            "oidc-audience-mapper"
           ]
         }
       },
@@ -118,7 +125,10 @@
             "oidc-full-name-mapper",
             "oidc-usermodel-property-mapper",
             "saml-user-attribute-idp-mapper",
-            "oidc-address-mapper"
+            "oidc-address-mapper",
+            "oidc-sub-mapper",
+            "oidc-usersessionmodel-note-mapper",
+            "oidc-audience-mapper"
           ]
         }
       },

@@ -15,14 +15,12 @@ from azure.monitor.opentelemetry import configure_azure_monitor
 from cosmosdb_store import CosmosDBStore
 from dotenv import load_dotenv
 from fastmcp import Context, FastMCP
-from fastmcp.server.auth import RemoteAuthProvider
 from fastmcp.server.auth.providers.azure import AzureProvider
-from fastmcp.server.auth.providers.jwt import JWTVerifier
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from key_value.aio.stores.memory import MemoryStore
+from keycloak_provider import KeycloakAuthProvider
 from opentelemetry.instrumentation.starlette import StarletteInstrumentor
-from pydantic import AnyHttpUrl
 from rich.console import Console
 from rich.logging import RichHandler
 from starlette.responses import JSONResponse
@@ -100,25 +98,25 @@ if mcp_auth_provider == "entra_proxy":
         "Using Entra OAuth Proxy for server %s and %s storage", entra_base_url, type(oauth_client_store).__name__
     )
 elif mcp_auth_provider == "keycloak":
-    # Keycloak authentication using RemoteAuthProvider with JWT verification
+    # Keycloak authentication using KeycloakAuthProvider with DCR support
+    # This enables VS Code and other MCP clients to dynamically register and authenticate
     KEYCLOAK_REALM_URL = os.environ["KEYCLOAK_REALM_URL"]
     KEYCLOAK_TOKEN_ISSUER = os.getenv("KEYCLOAK_TOKEN_ISSUER", KEYCLOAK_REALM_URL)
-    token_verifier = JWTVerifier(
-        jwks_uri=f"{KEYCLOAK_REALM_URL}/protocol/openid-connect/certs",
-        issuer=KEYCLOAK_TOKEN_ISSUER,
-        audience=os.getenv("KEYCLOAK_MCP_SERVER_AUDIENCE", "mcp-server"),
-    )
-    # Prefer specific base URL env for Keycloak when provided
-    if RUNNING_IN_PRODUCTION:
-        keycloak_base_url = os.environ["KEYCLOAK_MCP_SERVER_BASE_URL"]
-    else:
-        keycloak_base_url = "http://localhost:8000/mcp"
-    auth = RemoteAuthProvider(
-        token_verifier=token_verifier,
-        authorization_servers=[AnyHttpUrl(KEYCLOAK_REALM_URL)],
+    # Use KEYCLOAK_MCP_SERVER_BASE_URL if provided, otherwise default based on environment
+    keycloak_base_url = os.getenv("KEYCLOAK_MCP_SERVER_BASE_URL")
+    if not keycloak_base_url:
+        keycloak_base_url = "http://localhost:8000" if not RUNNING_IN_PRODUCTION else None
+    if not keycloak_base_url:
+        raise ValueError("KEYCLOAK_MCP_SERVER_BASE_URL must be set in production")
+    auth = KeycloakAuthProvider(
+        realm_url=KEYCLOAK_REALM_URL,
         base_url=keycloak_base_url,
+        required_scopes=[],
+        # Audience should match the value in Keycloak's mcp:tools scope
+        # Default to the base_url for local dev
+        audience=None
     )
-    logger.info("Using Keycloak auth for server %s and realm %s", keycloak_base_url, KEYCLOAK_REALM_URL)
+    logger.info("Using Keycloak DCR auth for server %s and realm %s", keycloak_base_url, KEYCLOAK_REALM_URL)
 else:
     logger.error("No authentication configured for MCP server, exiting.")
     raise SystemExit(1)
@@ -247,7 +245,31 @@ async def health_check(_request):
     return JSONResponse({"status": "healthy", "service": "mcp-server"})
 
 
+
+# Debug middleware to log token claims before auth
+from starlette.middleware.base import BaseHTTPMiddleware
+import base64
+import json
+
+class TokenDebugMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            try:
+                parts = token.split('.')
+                payload = parts[1]
+                payload += '=' * (4 - len(payload) % 4)
+                claims = json.loads(base64.urlsafe_b64decode(payload))
+                logger.info(f"=== TOKEN DEBUG ===")
+                logger.info(f"ALL CLAIMS: {claims}")
+                logger.info(f"===================")
+            except Exception as e:
+                logger.error(f"Token decode error: {e}")
+        return await call_next(request)
+
 # Configure Starlette middleware for OpenTelemetry
 # We must do this *after* defining all the MCP server routes
 app = mcp.http_app()
+app.add_middleware(TokenDebugMiddleware)
 StarletteInstrumentor.instrument_app(app)
