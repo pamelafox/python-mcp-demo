@@ -227,7 +227,7 @@ class KeycloakAuthProvider(RemoteAuthProvider):
                         key: value
                         for key, value in request.headers.items()
                         if key.lower()
-                        not in {"host", "content-length", "transfer-encoding"}
+                        not in {"host", "content-length", "transfer-encoding", "content-type"}
                     }
                     forward_headers["Content-Type"] = "application/json"
 

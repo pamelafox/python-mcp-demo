@@ -27,6 +27,7 @@ async def register_client_via_dcr(keycloak_realm_url: str, client_name_prefix: s
 
     Args:
         keycloak_realm_url: The Keycloak realm URL (e.g., http://localhost:8080/realms/myrealm)
+        Make sure to use direct container URL, not route.
         client_name_prefix: Prefix for the generated client name
 
     Returns:

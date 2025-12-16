@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 import logging
 import os
@@ -13,24 +11,18 @@ from dotenv import load_dotenv
 from rich import print
 from rich.logging import RichHandler
 
-try:
-    from keycloak_auth import get_auth_headers
-except ImportError:
-    from agents.keycloak_auth import get_auth_headers
-
 # Configure logging
 logging.basicConfig(level=logging.WARNING, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()])
 logger = logging.getLogger("agentframework_mcp_http")
+logger.setLevel(logging.INFO)
 
-# Load environment variables
-load_dotenv(override=True)
-
-# Constants
+# Configure constants and client based on environment
 RUNNING_IN_PRODUCTION = os.getenv("RUNNING_IN_PRODUCTION", "false").lower() == "true"
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp/")
 
-# Optional: Keycloak authentication (set KEYCLOAK_REALM_URL to enable)
-KEYCLOAK_REALM_URL = os.getenv("KEYCLOAK_REALM_URL")
+if not RUNNING_IN_PRODUCTION:
+    load_dotenv(override=True)
+
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp/")
 
 # Configure chat client based on API_HOST
 API_HOST = os.getenv("API_HOST", "github")
@@ -61,24 +53,9 @@ else:
 
 
 # --- Main Agent Logic ---
-
-
 async def http_mcp_example() -> None:
-    """
-    Demonstrate MCP integration with the Expenses MCP server.
-
-    If KEYCLOAK_REALM_URL is set, authenticates via OAuth (DCR + client credentials).
-    Otherwise, connects without authentication.
-    """
-    # Get auth headers if Keycloak is configured
-    headers = await get_auth_headers(KEYCLOAK_REALM_URL, client_name_prefix="agentframework")
-    if headers:
-        logger.info(f"🔐 Auth enabled - connecting to {MCP_SERVER_URL} with Bearer token")
-    else:
-        logger.info(f"📡 No auth - connecting to {MCP_SERVER_URL}")
-
     async with (
-        MCPStreamableHTTPTool(name="Expenses MCP Server", url=MCP_SERVER_URL, headers=headers) as mcp_server,
+        MCPStreamableHTTPTool(name="Expenses MCP Server", url=MCP_SERVER_URL) as mcp_server,
         ChatAgent(
             chat_client=client,
             name="Expenses Agent",

@@ -29,7 +29,7 @@ resource httpRouteConfig 'Microsoft.App/managedEnvironments/httpRouteConfigs@202
   parent: containerEnv
   properties: {
     rules: [
-      // Route /auth/* to Keycloak (strip /auth prefix since Keycloak serves at root)
+      // Route /auth/* to Keycloak (Keycloak is configured with --http-relative-path=/auth)
       // Using pathSeparatedPrefix ensures /auth doesn't match /authentication
       {
         description: 'Keycloak Authentication Server'
@@ -38,9 +38,7 @@ resource httpRouteConfig 'Microsoft.App/managedEnvironments/httpRouteConfigs@202
             match: {
               pathSeparatedPrefix: '/auth'
             }
-            action: {
-              prefixRewrite: '/'
-            }
+            action: {}
           }
         ]
         targets: [
