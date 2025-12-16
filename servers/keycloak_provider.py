@@ -12,18 +12,17 @@ https://github.com/jlowin/fastmcp/pull/1937
 
 from __future__ import annotations
 
+import base64
+import json
+
 import httpx
+from fastmcp.server.auth import RemoteAuthProvider
+from fastmcp.server.auth.providers.jwt import JWTVerifier
+from fastmcp.utilities.logging import get_logger
 from pydantic import AnyHttpUrl
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from fastmcp.server.auth import RemoteAuthProvider
-from fastmcp.server.auth.providers.jwt import JWTVerifier
-from fastmcp.utilities.logging import get_logger
-
-
-import base64
-import json
 
 def decode_jwt_debug(token):
     """Decode JWT payload for debugging"""

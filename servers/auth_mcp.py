@@ -1,5 +1,7 @@
 """Run with: cd servers && uvicorn auth_mcp:app --host 0.0.0.0 --port 8000"""
 
+import base64
+import json
 import logging
 import os
 import uuid
@@ -23,6 +25,7 @@ from keycloak_provider import KeycloakAuthProvider
 from opentelemetry.instrumentation.starlette import StarletteInstrumentor
 from rich.console import Console
 from rich.logging import RichHandler
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from opentelemetry_middleware import OpenTelemetryMiddleware
@@ -247,10 +250,6 @@ async def health_check(_request):
 
 
 # Debug middleware to log token claims before auth
-from starlette.middleware.base import BaseHTTPMiddleware
-import base64
-import json
-
 class TokenDebugMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         auth_header = request.headers.get("Authorization", "")
@@ -261,9 +260,9 @@ class TokenDebugMiddleware(BaseHTTPMiddleware):
                 payload = parts[1]
                 payload += '=' * (4 - len(payload) % 4)
                 claims = json.loads(base64.urlsafe_b64decode(payload))
-                logger.info(f"=== TOKEN DEBUG ===")
+                logger.info("=== TOKEN DEBUG ===")
                 logger.info(f"ALL CLAIMS: {claims}")
-                logger.info(f"===================")
+                logger.info("===================")
             except Exception as e:
                 logger.error(f"Token decode error: {e}")
         return await call_next(request)
