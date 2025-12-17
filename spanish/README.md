@@ -289,7 +289,7 @@ Podés usar la [calculadora de precios de Azure](https://azure.com/e/3987c81282c
 
 ### Ver trazas en Azure Application Insights
 
-Por defecto, el tracing de OpenTelemetry está habilitado para el servidor MCP desplegado y envía trazas a Azure Application Insights. Para abrir un panel con métricas y trazas, ejecutá:
+Por defecto, el tracing de OpenTelemetry está habilitado para el servidor MCP desplegado y envía trazas a Azure Application Insights. Para abrir un dashboard con métricas y trazas, ejecutá:
 
 ```shell
 azd monitor
