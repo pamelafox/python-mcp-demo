@@ -28,10 +28,7 @@
 				"servers/basic_mcp_stdio.py"
 			]
 		},
-		"my-mcp-server-60626805": {
-			"url": "https://mcproutes.whitetree-5dc0246f.eastus2.azurecontainerapps.io/mcp",
-			"type": "http"
-		}
+		
 	},
 	"inputs": []
 }

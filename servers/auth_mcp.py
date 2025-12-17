@@ -103,24 +103,26 @@ if mcp_auth_provider == "entra_proxy":
     )
 elif mcp_auth_provider == "keycloak":
     # Keycloak authentication using KeycloakAuthProvider with DCR support
-    # This enables VS Code and other MCP clients to dynamically register and authenticate
     KEYCLOAK_REALM_URL = os.environ["KEYCLOAK_REALM_URL"]
-    KEYCLOAK_TOKEN_ISSUER = os.getenv("KEYCLOAK_TOKEN_ISSUER", KEYCLOAK_REALM_URL)
-    # Use KEYCLOAK_MCP_SERVER_BASE_URL if provided, otherwise default based on environment
     keycloak_base_url = os.getenv("KEYCLOAK_MCP_SERVER_BASE_URL")
     if not keycloak_base_url:
         keycloak_base_url = "http://localhost:8000" if not RUNNING_IN_PRODUCTION else None
     if not keycloak_base_url:
         raise ValueError("KEYCLOAK_MCP_SERVER_BASE_URL must be set in production")
+
+    # Get audience from env (optional - validates aud claim if set)
+    keycloak_audience = os.getenv("KEYCLOAK_MCP_SERVER_AUDIENCE") or None
+
     auth = KeycloakAuthProvider(
         realm_url=KEYCLOAK_REALM_URL,
         base_url=keycloak_base_url,
         required_scopes=[],
-        # Audience should match the value in Keycloak's mcp:tools scope
-        # Default to the base_url for local dev
-        audience=None,
+        audience=keycloak_audience,
     )
-    logger.info("Using Keycloak DCR auth for server %s and realm %s", keycloak_base_url, KEYCLOAK_REALM_URL)
+    logger.info(
+        "Using Keycloak DCR auth for server %s and realm %s (audience=%s)",
+        keycloak_base_url, KEYCLOAK_REALM_URL, keycloak_audience
+    )
 else:
     logger.error("No authentication configured for MCP server, exiting.")
     raise SystemExit(1)
@@ -252,7 +254,10 @@ async def health_check(_request):
 # Debug middleware to log token claims before auth
 class TokenDebugMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
+        path = request.url.path
+        method = request.method
         auth_header = request.headers.get("Authorization", "")
+        
         if auth_header.startswith("Bearer "):
             token = auth_header[7:]
             try:
@@ -260,11 +265,17 @@ class TokenDebugMiddleware(BaseHTTPMiddleware):
                 payload = parts[1]
                 payload += "=" * (4 - len(payload) % 4)
                 claims = json.loads(base64.urlsafe_b64decode(payload))
-                logger.info("=== TOKEN DEBUG ===")
-                logger.info(f"ALL CLAIMS: {claims}")
+                logger.info(f"=== TOKEN DEBUG [{method} {path}] ===")
+                logger.info(f"iss: {claims.get('iss')}")
+                logger.info(f"aud: {claims.get('aud')}")
+                logger.info(f"azp: {claims.get('azp')}")
+                logger.info(f"scope: {claims.get('scope')}")
+                logger.info(f"exp: {claims.get('exp')}")
                 logger.info("===================")
             except Exception as e:
-                logger.error(f"Token decode error: {e}")
+                logger.error(f"Token decode error [{method} {path}]: {e}")
+        else:
+            logger.info(f"=== NO BEARER TOKEN [{method} {path}] auth_header={auth_header[:50] if auth_header else 'empty'} ===")
         return await call_next(request)
 
 

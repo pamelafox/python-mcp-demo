@@ -14,6 +14,37 @@
   "accessCodeLifespan": 60,
   "accessCodeLifespanUserAction": 300,
   "accessCodeLifespanLogin": 1800,
+  "defaultDefaultClientScopes": [
+    "openid",
+    "profile", 
+    "email",
+    "mcp:tools"
+  ],
+  "clientScopes": [
+    {
+      "name": "mcp:tools",
+      "description": "MCP tools scope with audience mapper for MCP server resource",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Access MCP tools"
+      },
+      "protocolMappers": [
+        {
+          "name": "mcp-server-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "mcp-server",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
   "clients": [
     {
       "clientId": "vscode-mcp-client",
@@ -70,12 +101,7 @@
 ]
         }
       },
-      {
-        "name": "Consent Required",
-        "providerId": "consent-required",
-        "subType": "anonymous",
-        "config": {}
-      },
+
       {
         "name": "Max Clients Limit",
         "providerId": "max-clients",

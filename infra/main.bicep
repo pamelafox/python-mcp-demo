@@ -763,7 +763,6 @@ module server 'server.bicep' = {
     exists: serverExists
     // Keycloak authentication configuration (only when enabled)
     keycloakRealmUrl: useKeycloak ? '${keycloak!.outputs.uri}/auth/realms/${keycloakRealmName}' : ''
-    keycloakTokenIssuer: useKeycloak ? '${keycloakMcpServerBaseUrl}/auth/realms/${keycloakRealmName}' : ''
     keycloakMcpServerBaseUrl: useKeycloak ? keycloakMcpServerBaseUrl : ''
     keycloakMcpServerAudience: keycloakMcpServerAudience
     // Azure/Entra ID OAuth Proxy authentication configuration (only when enabled)
