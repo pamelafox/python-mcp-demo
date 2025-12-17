@@ -95,6 +95,8 @@ param logfireToken string = ''
 // Derived booleans for backward compatibility in bicep modules
 var useKeycloak = mcpAuthProvider == 'keycloak'
 var useEntraProxy = mcpAuthProvider == 'entra_proxy'
+// Auth is considered enabled when either Keycloak or Entra OAuth Proxy is used
+var authEnabled = useKeycloak || useEntraProxy
 
 var resourceToken = toLower(uniqueString(subscription().id, name, location))
 var tags = { 'azd-env-name': name }
@@ -180,29 +182,36 @@ module cosmosDb 'br/public:avm/res/document-db/database-account:0.6.1' = {
     sqlDatabases: [
       {
         name: cosmosDbDatabaseName
-        containers: [
-          {
-            name: cosmosDbContainerName
-            kind: 'Hash'
-            paths: [
-              '/category'
-            ]
-          }
-          {
-            name: cosmosDbUserContainerName
-            kind: 'Hash'
-            paths: [
-              '/user_id'
-            ]
-          }
-          {
-            name: cosmosDbOAuthContainerName
-            kind: 'Hash'
-            paths: [
-              '/collection'
-            ]
-          }
-        ]
+        // Always create the base expenses container; add auth-related containers only when authentication is enabled
+        containers: concat(
+          [
+            {
+              name: cosmosDbContainerName
+              kind: 'Hash'
+              paths: [
+                '/category'
+              ]
+            }
+          ],
+          authEnabled
+            ? [
+                {
+                  name: cosmosDbUserContainerName
+                  kind: 'Hash'
+                  paths: [
+                    '/user_id'
+                  ]
+                }
+                {
+                  name: cosmosDbOAuthContainerName
+                  kind: 'Hash'
+                  paths: [
+                    '/collection'
+                  ]
+                }
+              ]
+            : []
+        )
       }
     ]
   }
@@ -234,6 +243,17 @@ module applicationInsights 'br/public:avm/res/insights/component:0.4.2' = if (us
     workspaceResourceId: logAnalyticsWorkspace.?outputs.resourceId!
     kind: 'web'
     applicationType: 'web'
+  }
+}
+
+// Portal dashboard with Log Analytics queries visualizing MCP tools metrics
+module applicationInsightsDashboard 'appinsights-dashboard.bicep' = if (useAppInsights) {
+  name: 'application-insights-dashboard'
+  scope: resourceGroup
+  params: {
+    name: '${prefix}-dashboard'
+    location: location
+    applicationInsightsName: applicationInsights!.outputs.name
   }
 }
 

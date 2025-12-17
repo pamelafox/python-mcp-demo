@@ -93,7 +93,6 @@ class OpenTelemetryMiddleware(Middleware):
 
         attributes: dict[str, AttributeValue] = {
             "mcp.method.name": method_name,
-            # PR #2083 aligns tool/prompt naming with GenAI attributes.
             "gen_ai.tool.name": tool_name,
             "gen_ai.operation.name": "execute_tool",
         }

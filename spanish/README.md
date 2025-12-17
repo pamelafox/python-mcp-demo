@@ -287,6 +287,20 @@ Podés usar la [calculadora de precios de Azure](https://azure.com/e/3987c81282c
 
 ⚠️ Para evitar costos innecesarios, recordá dar de baja la app si ya no la usás, borrando el grupo de recursos en el Portal o ejecutando `azd down`.
 
+### Ver trazas en Azure Application Insights
+
+Por defecto, el tracing de OpenTelemetry está habilitado para el servidor MCP desplegado y envía trazas a Azure Application Insights. Para abrir un dashboard con métricas y trazas, ejecutá:
+
+```shell
+azd monitor
+```
+
+O también podés usar Application Insights directamente:
+
+1. Abrí el Portal de Azure y navegá al recurso de Application Insights creado durante el despliegue (con nombre `<project-name>-appinsights`).
+2. En Application Insights, andá a "Transaction Search" para ver trazas del servidor MCP.
+3. Podés filtrar y analizar las trazas para monitorear rendimiento y diagnosticar problemas.
+
 ---
 
 ## Desplegar en Azure con red privada
