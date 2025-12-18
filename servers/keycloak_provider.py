@@ -10,13 +10,12 @@ Based on proposed FastMCP PR: https://github.com/jlowin/fastmcp/pull/1937
 from __future__ import annotations
 
 import httpx
-from pydantic import AnyHttpUrl
-from starlette.responses import JSONResponse
-from starlette.routing import Route
-
 from fastmcp.server.auth import RemoteAuthProvider
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 from fastmcp.utilities.logging import get_logger
+from pydantic import AnyHttpUrl
+from starlette.responses import JSONResponse
+from starlette.routing import Route
 
 logger = get_logger(__name__)
 
@@ -125,9 +124,7 @@ class KeycloakAuthProvider(RemoteAuthProvider):
             """Forward Keycloak's OAuth metadata with registration endpoint pointing to our minimal DCR proxy."""
             try:
                 async with httpx.AsyncClient() as client:
-                    response = await client.get(
-                        f"{self.realm_url}/.well-known/oauth-authorization-server"
-                    )
+                    response = await client.get(f"{self.realm_url}/.well-known/oauth-authorization-server")
                     response.raise_for_status()
                     metadata = response.json()
 
@@ -168,18 +165,16 @@ class KeycloakAuthProvider(RemoteAuthProvider):
 
                 # Forward to Keycloak's DCR endpoint
                 async with httpx.AsyncClient(timeout=10.0) as client:
+                    # Build headers to forward, explicitly dropping any existing content-type
+                    # to avoid duplicates like "application/json,application/json" seen by Keycloak.
+                    excluded = {"host", "content-length", "transfer-encoding", "content-type"}
                     forward_headers = {
-                        key: value
-                        for key, value in request.headers.items()
-                        if key.lower()
-                        not in {"host", "content-length", "transfer-encoding"}
+                        key: value for key, value in request.headers.items() if key.lower() not in excluded
                     }
                     forward_headers["Content-Type"] = "application/json"
 
                     # Keycloak's standard DCR endpoint pattern
-                    registration_endpoint = (
-                        f"{self.realm_url}/clients-registrations/openid-connect"
-                    )
+                    registration_endpoint = f"{self.realm_url}/clients-registrations/openid-connect"
                     response = await client.post(
                         registration_endpoint,
                         content=body,
@@ -189,9 +184,7 @@ class KeycloakAuthProvider(RemoteAuthProvider):
                     if response.status_code != 201:
                         return JSONResponse(
                             response.json()
-                            if response.headers.get("content-type", "").startswith(
-                                "application/json"
-                            )
+                            if response.headers.get("content-type", "").startswith("application/json")
                             else {"error": "registration_failed"},
                             status_code=response.status_code,
                         )
@@ -199,21 +192,16 @@ class KeycloakAuthProvider(RemoteAuthProvider):
                     # Fix token_endpoint_auth_method for MCP compatibility
                     client_info = response.json()
                     original_auth_method = client_info.get("token_endpoint_auth_method")
-                    logger.debug(
-                        f"Received token_endpoint_auth_method from Keycloak: {original_auth_method}"
-                    )
+                    logger.debug(f"Received token_endpoint_auth_method from Keycloak: {original_auth_method}")
 
                     if original_auth_method == "client_secret_basic":
-                        logger.debug(
-                            "Fixing token_endpoint_auth_method: client_secret_basic -> client_secret_post"
-                        )
+                        logger.debug("Fixing token_endpoint_auth_method: client_secret_basic -> client_secret_post")
                         client_info["token_endpoint_auth_method"] = "client_secret_post"
 
                     logger.debug(
-                        f"Returning token_endpoint_auth_method to client: {client_info.get('token_endpoint_auth_method')}"
+                        f"Returning token_endpoint_auth_method: {client_info.get('token_endpoint_auth_method')}"
                     )
                     return JSONResponse(client_info, status_code=201)
-
             except Exception as e:
                 logger.error(f"DCR proxy error: {e}")
                 return JSONResponse(

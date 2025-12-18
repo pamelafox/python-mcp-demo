@@ -16,11 +16,22 @@
   "accessCodeLifespanLogin": 1800,
   "defaultDefaultClientScopes": [
     "openid",
-    "profile", 
+    "profile",
     "email",
-    "mcp:tools"
+    "mcp:tools",
+    "basic"
   ],
   "clientScopes": [
+    {
+      "id": "basic-scope",
+      "name": "basic",
+      "description": "Basic scope for VS Code compatibility",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
     {
       "name": "mcp:tools",
       "description": "MCP tools scope with audience mapper for MCP server resource",
@@ -135,7 +146,15 @@
         "providerId": "allowed-client-templates",
         "subType": "anonymous",
         "config": {
-          "allow-default-scopes": ["true"]
+          "allow-default-scopes": ["true"],
+          "allowed-client-templates": [
+            "openid",
+            "profile",
+            "email",
+            "offline_access",
+            "mcp:tools",
+            "basic"
+          ]
         }
       },
       {

@@ -104,12 +104,10 @@ if mcp_auth_provider == "entra_proxy":
 elif mcp_auth_provider == "keycloak":
     # Keycloak authentication using KeycloakAuthProvider with DCR support
     KEYCLOAK_REALM_URL = os.environ["KEYCLOAK_REALM_URL"]
-    keycloak_base_url = os.getenv("KEYCLOAK_MCP_SERVER_BASE_URL")
-    if not keycloak_base_url:
-        keycloak_base_url = "http://localhost:8000" if not RUNNING_IN_PRODUCTION else None
-    if not keycloak_base_url:
-        raise ValueError("KEYCLOAK_MCP_SERVER_BASE_URL must be set in production")
-
+    if RUNNING_IN_PRODUCTION:
+        keycloak_base_url = os.environ["KEYCLOAK_MCP_SERVER_BASE_URL"]
+    else:
+        keycloak_base_url = "http://localhost:8000"
     # Get audience from env (optional - validates aud claim if set)
     keycloak_audience = os.getenv("KEYCLOAK_MCP_SERVER_AUDIENCE") or None
 
@@ -121,7 +119,9 @@ elif mcp_auth_provider == "keycloak":
     )
     logger.info(
         "Using Keycloak DCR auth for server %s and realm %s (audience=%s)",
-        keycloak_base_url, KEYCLOAK_REALM_URL, keycloak_audience
+        keycloak_base_url,
+        KEYCLOAK_REALM_URL,
+        keycloak_audience,
     )
 else:
     logger.error("No authentication configured for MCP server, exiting.")
@@ -257,7 +257,7 @@ class TokenDebugMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         method = request.method
         auth_header = request.headers.get("Authorization", "")
-        
+
         if auth_header.startswith("Bearer "):
             token = auth_header[7:]
             try:
@@ -275,7 +275,9 @@ class TokenDebugMiddleware(BaseHTTPMiddleware):
             except Exception as e:
                 logger.error(f"Token decode error [{method} {path}]: {e}")
         else:
-            logger.info(f"=== NO BEARER TOKEN [{method} {path}] auth_header={auth_header[:50] if auth_header else 'empty'} ===")
+            logger.info(
+                f"=== NO BEARER TOKEN [{method} {path}] auth_header={auth_header[:50] if auth_header else 'empty'} ==="
+            )
         return await call_next(request)
 
 

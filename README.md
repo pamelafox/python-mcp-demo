@@ -399,7 +399,7 @@ This project supports deploying with OAuth 2.0 authentication using Keycloak as 
 2. Set the Keycloak admin password (required):
 
    ```bash
-   azd env set KEYCLOAK_ADMIN_PASSWORD "YourSecurePassword123!"
+   azd env set KEYCLOAK_ADMIN_PASSWORD "YourSecurePassword123"
    ```
 
 3. Optionally customize the realm name (default: `mcp`):
@@ -431,24 +431,6 @@ This project supports deploying with OAuth 2.0 authentication using Keycloak as 
    ```
 
    Login with `admin` and your configured password.
-
-### Testing with the agent
-
-1. Generate the local environment file (automatically created after `azd up`):
-
-   ```bash
-   ./infra/write_env.sh
-   ```
-
-   This creates `.env` with `KEYCLOAK_REALM_URL`, `MCP_SERVER_URL`, and Azure OpenAI settings.
-
-2. Run the agent:
-
-   ```bash
-   uv run agents/agentframework_http.py
-   ```
-
-   The agent automatically detects `KEYCLOAK_REALM_URL` in the environment and authenticates via DCR + client credentials. On success, it will add an expense and print the result.
 
 ### Use Keycloak OAuth MCP server with GitHub Copilot
 
@@ -546,17 +528,6 @@ This project supports deploying with Microsoft Entra ID (Azure AD) authenticatio
    azd env get-value MCP_SERVER_URL
    azd env get-value ENTRA_PROXY_AZURE_CLIENT_ID
    ```
-
-### Environment variables
-
-The following environment variables are automatically set by the deployment hooks:
-
-| Variable | Description |
-|----------|-------------|
-| `ENTRA_PROXY_AZURE_CLIENT_ID` | The App Registration's client ID |
-| `ENTRA_PROXY_AZURE_CLIENT_SECRET` | The App Registration's client secret |
-
-These are then written to `.env` by the postprovision hook for local development.
 
 ### Testing the Entra OAuth server locally
 
