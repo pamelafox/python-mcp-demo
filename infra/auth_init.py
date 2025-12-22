@@ -143,7 +143,7 @@ def update_app_with_identifier_uri(client_id: str) -> Application:
     )
 
 
-async def create_or_update_fastmcp_app(graph_client: GraphServiceClient) -> None:
+async def create_or_update_fastmcp_app(graph_client: GraphServiceClient):
     """Create or update a FastMCP app registration."""
     app_id_env_var = "ENTRA_PROXY_AZURE_CLIENT_ID"
     app_secret_env_var = "ENTRA_PROXY_AZURE_CLIENT_SECRET"
@@ -178,7 +178,7 @@ async def create_or_update_fastmcp_app(graph_client: GraphServiceClient) -> None
         update_azd_env(app_secret_env_var, client_secret)
         print("Client secret created and saved to environment.")
 
-    return object_id, app_id
+    return app_id
 
 
 @dataclass
@@ -203,13 +203,7 @@ async def grant_application_admin_consent(graph_client: GraphServiceClient, serv
             resource_app_id="00000003-0000-0000-c000-000000000000",
             scopes=["User.Read", "email", "offline_access", "openid", "profile"],
             target_label="server application",
-        ),
-        GrantDefinition(
-            principal_id=server_principal.id,
-            resource_app_id="880da380-985e-4198-81b9-e05b1cc53158",
-            scopes=["user_impersonation"],
-            target_label="server application",
-        ),
+        )
     ]
 
     for grant in grant_definitions:
@@ -262,11 +256,12 @@ async def main():
     scopes = ["https://graph.microsoft.com/.default"]
     graph_client = GraphServiceClient(credentials=credential, scopes=scopes)
 
-    server_object_id, server_app_id = await create_or_update_fastmcp_app(graph_client)
-    print("Setup complete!")
+    server_app_id = await create_or_update_fastmcp_app(graph_client)
 
     print("Attempting to grant admin consent for the client and server applications...")
     await grant_application_admin_consent(graph_client, server_app_id)
+
+    print("✅ Entra app registration setup is complete.")
 
 
 if __name__ == "__main__":
