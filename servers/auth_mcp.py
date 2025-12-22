@@ -7,6 +7,7 @@ from datetime import date
 from enum import Enum
 from typing import Annotated
 
+import httpx
 import logfire
 from azure.core.settings import settings
 from azure.cosmos.aio import CosmosClient
@@ -20,6 +21,7 @@ from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from key_value.aio.stores.memory import MemoryStore
 from keycloak_provider import KeycloakAuthProvider
+from msal import ConfidentialClientApplication, TokenCache
 from opentelemetry.instrumentation.starlette import StarletteInstrumentor
 from rich.console import Console
 from rich.logging import RichHandler
@@ -123,6 +125,31 @@ elif mcp_auth_provider == "keycloak":
 else:
     logger.error("No authentication configured for MCP server, exiting.")
     raise SystemExit(1)
+
+confidential_client = ConfidentialClientApplication(
+    client_id=os.environ["ENTRA_PROXY_AZURE_CLIENT_ID"],
+    client_credential=os.environ["ENTRA_PROXY_AZURE_CLIENT_SECRET"],
+    authority=f"https://login.microsoftonline.com/{os.environ['AZURE_TENANT_ID']}",
+    token_cache=TokenCache(),
+)
+
+
+async def get_user_groups_from_graph(graph_token: str) -> list[dict]:
+    """Fetch the authenticated user's group memberships from Microsoft Graph API."""
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "https://graph.microsoft.com/v1.0/me/memberOf",
+            headers={"Authorization": f"Bearer {graph_token}"},
+        )
+        response.raise_for_status()
+        data = response.json()
+        # Filter to only group objects and extract relevant fields
+        groups = [
+            {"id": item["id"], "displayName": item.get("displayName")}
+            for item in data.get("value", [])
+            if item.get("@odata.type") == "#microsoft.graph.group"
+        ]
+        return groups
 
 
 # Middleware to populate user_id in per-request context state
@@ -240,6 +267,55 @@ async def get_user_expenses(ctx: Context):
     except Exception as e:
         logger.error(f"Error reading expenses: {str(e)}")
         return f"Error: Unable to retrieve expense data - {str(e)}"
+
+
+@mcp.tool
+async def get_expense_stats(ctx: Context):
+    """Get a statistical summary of expenses (count per category) for all users.
+    Only accessible to users in the authorized admin group.
+    """
+    access_token = get_access_token()
+    if not access_token:
+        return "Error: Authentication required"
+
+    auth_token = access_token.token
+    try:
+        graph_resource_access_token = confidential_client.acquire_token_on_behalf_of(
+            user_assertion=auth_token, scopes=["https://graph.microsoft.com/.default"]
+        )
+        if "error" in graph_resource_access_token:
+            return "Error: Unable to obtain Graph API access token for authorization check"
+
+        graph_auth_token = graph_resource_access_token["access_token"]
+        user_groups = await get_user_groups_from_graph(graph_auth_token)
+
+        # Check for the specific admin group ID
+        admin_group_id = "112345c1-f7b8-4900-bcc6-8e8208bcf560"
+        is_admin = any(group["id"] == admin_group_id for group in user_groups)
+
+        if not is_admin:
+            return "Error: Unauthorized. You do not have permission to access expense statistics."
+
+        # Query Cosmos DB for stats across all users
+        # We fetch categories and aggregate in Python to avoid cross-partition GROUP BY limitations
+        query = "SELECT c.category FROM c"
+        stats = {}
+        async for item in cosmos_container.query_items(query=query):
+            category = item.get("category", "Unknown")
+            stats[category] = stats.get(category, 0) + 1
+
+        if not stats:
+            return "No expense data found to summarize."
+
+        summary = "Expense Statistics (Count per Category):\n"
+        for category, count in stats.items():
+            summary += f"- Category {category}: {count} expenses\n"
+
+        return summary
+
+    except Exception as e:
+        logger.error(f"Error retrieving expense stats: {str(e)}")
+        return f"Error: Unable to retrieve expense statistics - {str(e)}"
 
 
 @mcp.custom_route("/health", methods=["GET"])
