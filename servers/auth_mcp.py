@@ -134,22 +134,23 @@ confidential_client = ConfidentialClientApplication(
 )
 
 
-async def get_user_groups_from_graph(graph_token: str) -> list[dict]:
-    """Fetch the authenticated user's group memberships from Microsoft Graph API."""
+async def check_user_in_group(graph_token: str, group_id: str) -> bool:
+    """Check if the authenticated user is a member of the specified group (including transitive membership)."""
     async with httpx.AsyncClient() as client:
+        url = (
+            "https://graph.microsoft.com/v1.0/me/transitiveMemberOf/microsoft.graph.group"
+            f"?$filter=id eq '{group_id}'&$count=true"
+        )
         response = await client.get(
-            "https://graph.microsoft.com/v1.0/me/memberOf",
-            headers={"Authorization": f"Bearer {graph_token}"},
+            url,
+            headers={
+                "Authorization": f"Bearer {graph_token}",
+                "ConsistencyLevel": "eventual",
+            },
         )
         response.raise_for_status()
         data = response.json()
-        # Filter to only group objects and extract relevant fields
-        groups = [
-            {"id": item["id"], "displayName": item.get("displayName")}
-            for item in data.get("value", [])
-            if item.get("@odata.type") == "#microsoft.graph.group"
-        ]
-        return groups
+        return data.get("@odata.count", 0) > 0
 
 
 # Middleware to populate user_id in per-request context state
@@ -287,11 +288,12 @@ async def get_expense_stats(ctx: Context):
             return "Error: Unable to obtain Graph API access token for authorization check"
 
         graph_auth_token = graph_resource_access_token["access_token"]
-        user_groups = await get_user_groups_from_graph(graph_auth_token)
 
-        # Check for the specific admin group ID
-        admin_group_id = "112345c1-f7b8-4900-bcc6-8e8208bcf560"
-        is_admin = any(group["id"] == admin_group_id for group in user_groups)
+        # Check for the specific admin group ID using transitive membership
+        admin_group_id = os.environ.get("ENTRA_ADMIN_GROUP_ID", "")
+        if not admin_group_id:
+            return "Error: Admin group ID not configured. Set ENTRA_ADMIN_GROUP_ID environment variable."
+        is_admin = await check_user_in_group(graph_auth_token, admin_group_id)
 
         if not is_admin:
             return "Error: Unauthorized. You do not have permission to access expense statistics."
