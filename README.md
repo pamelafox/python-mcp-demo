@@ -18,6 +18,7 @@ A demonstration project showcasing Model Context Protocol (MCP) implementations 
 - [Deploy to Azure with private networking](#deploy-to-azure-with-private-networking)
 - [Deploy to Azure with Keycloak authentication](#deploy-to-azure-with-keycloak-authentication)
 - [Deploy to Azure with Entra OAuth Proxy](#deploy-to-azure-with-entra-oauth-proxy)
+- [Resources](#resources)
 
 ## Getting started
 
@@ -585,3 +586,9 @@ To use the deployed MCP server with GitHub Copilot Chat:
 9. Verify the expense was added by checking the Cosmos DB `user-expenses` container in the Azure Portal.
 
    ![Cosmos DB user-expenses container](readme_userexpenses.png)
+
+## Resources
+
+* [Video series: Python + MCP (December 2025)](https://techcommunity.microsoft.com/blog/azuredevcommunityblog/learn-how-to-build-mcp-servers-with-python-and-azure/4479402)
+* [MCP for beginners: Online tutorial](https://github.com/microsoft/mcp-for-beginners)
+* [Python MCP servers on Azure Functions](https://github.com/Azure-Samples/mcp-sdk-functions-hosting-python)
