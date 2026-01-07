@@ -29,3 +29,11 @@ When adding new azd environment variables, update these files:
 
 6. **infra/main.bicep outputs**: If the value needs to be stored back in azd env after provisioning:
    - Add an output (note: `@secure()` parameters cannot be outputs)
+
+## Updating Python dependencies
+
+When updating or adding Python dependencies:
+
+1. Edit `pyproject.toml` with the new or updated version constraints.
+2. Run `uv lock` to re-resolve dependencies (use `uv lock -P <package>` to upgrade only a specific package).
+3. Run `uv sync` to install the updated lockfile into the virtual environment.

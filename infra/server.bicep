@@ -40,8 +40,13 @@ param logfireToken string = ''
 param mcpAuthProvider string = 'none'
 
 // Base environment variables
-// Select MCP entrypoint based on configured auth (Keycloak or FastMCP Azure auth)
-var mcpEntry = (!empty(keycloakRealmUrl) || !empty(entraProxyClientId)) ? 'auth' : 'deployed'
+// Select MCP entrypoint based on configured auth
+// - Keycloak → 'auth_keycloak_mcp'
+// - Entra OAuth Proxy → 'auth_entra_mcp'
+// - None → 'deployed_mcp'
+var mcpEntry = mcpAuthProvider == 'keycloak'
+  ? 'auth_keycloak_mcp'
+  : (mcpAuthProvider == 'entra_proxy' ? 'auth_entra_mcp' : 'deployed_mcp')
 var baseEnv = [
   {
     name: 'AZURE_OPENAI_CHAT_DEPLOYMENT'

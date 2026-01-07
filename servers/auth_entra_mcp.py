@@ -1,8 +1,13 @@
-"""Run with: cd servers && uvicorn auth_mcp:app --host 0.0.0.0 --port 8000"""
+"""
+Expense tracking MCP server with Entra authentication and Cosmos DB storage.
+
+Run with: cd servers && uvicorn auth_entra_mcp:app --host 0.0.0.0 --port 8000
+"""
 
 import logging
 import os
 import uuid
+import warnings
 from datetime import date
 from enum import Enum
 from typing import Annotated
@@ -20,7 +25,6 @@ from fastmcp.server.auth.providers.azure import AzureProvider
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from key_value.aio.stores.memory import MemoryStore
-from keycloak_provider import KeycloakAuthProvider
 from msal import ConfidentialClientApplication, TokenCache
 from opentelemetry.instrumentation.starlette import StarletteInstrumentor
 from rich.console import Console
@@ -36,7 +40,7 @@ if not RUNNING_IN_PRODUCTION:
 
 logging.basicConfig(
     level=logging.WARNING,
-    format="%(message)s",
+    format="%(name)s: %(message)s",
     handlers=[
         RichHandler(
             console=Console(stderr=True),
@@ -46,6 +50,9 @@ logging.basicConfig(
         )
     ],
 )
+# Suppress OTEL 1.39 deprecation warnings and noisy logs
+warnings.filterwarnings("ignore", category=DeprecationWarning, message=r".*Deprecated since version 1\.39\.0.*")
+logging.getLogger("azure.monitor.opentelemetry.exporter._performance_counters._manager").setLevel(logging.ERROR)
 logger = logging.getLogger("ExpensesMCP")
 logger.setLevel(logging.INFO)
 
@@ -76,55 +83,25 @@ cosmos_db = cosmos_client.get_database_client(os.environ["AZURE_COSMOSDB_DATABAS
 cosmos_container = cosmos_db.get_container_client(os.environ["AZURE_COSMOSDB_USER_CONTAINER"])
 
 # Configure authentication provider
-auth = None
-mcp_auth_provider = os.getenv("MCP_AUTH_PROVIDER", "none").lower()
-if mcp_auth_provider == "entra_proxy":
-    # Azure/Entra ID authentication using AzureProvider
-    # When running locally, always use localhost for base URL (OAuth redirects need to match)
-    oauth_client_store = None
-    if RUNNING_IN_PRODUCTION:
-        oauth_container = cosmos_db.get_container_client(os.environ["AZURE_COSMOSDB_OAUTH_CONTAINER"])
-        oauth_client_store = CosmosDBStore(container=oauth_container, default_collection="oauth-clients")
-        entra_base_url = os.environ["ENTRA_PROXY_MCP_SERVER_BASE_URL"]
-    else:
-        oauth_client_store = MemoryStore()
-        entra_base_url = "http://localhost:8000"
-    auth = AzureProvider(
-        client_id=os.environ["ENTRA_PROXY_AZURE_CLIENT_ID"],
-        client_secret=os.environ["ENTRA_PROXY_AZURE_CLIENT_SECRET"],
-        tenant_id=os.environ["AZURE_TENANT_ID"],
-        base_url=entra_base_url,
-        required_scopes=["mcp-access"],
-        client_storage=oauth_client_store,
-    )
-    logger.info(
-        "Using Entra OAuth Proxy for server %s and %s storage", entra_base_url, type(oauth_client_store).__name__
-    )
-elif mcp_auth_provider == "keycloak":
-    # Keycloak authentication using KeycloakAuthProvider with DCR support
-    KEYCLOAK_REALM_URL = os.environ["KEYCLOAK_REALM_URL"]
-    if RUNNING_IN_PRODUCTION:
-        keycloak_base_url = os.environ["KEYCLOAK_MCP_SERVER_BASE_URL"]
-    else:
-        keycloak_base_url = "http://localhost:8000"
-
-    keycloak_audience = os.getenv("KEYCLOAK_MCP_SERVER_AUDIENCE") or "mcp-server"
-
-    auth = KeycloakAuthProvider(
-        realm_url=KEYCLOAK_REALM_URL,
-        base_url=keycloak_base_url,
-        required_scopes=["openid", "mcp:access"],
-        audience=keycloak_audience,
-    )
-    logger.info(
-        "Using Keycloak DCR auth for server %s and realm %s (audience=%s)",
-        keycloak_base_url,
-        KEYCLOAK_REALM_URL,
-        keycloak_audience,
-    )
+# Azure/Entra ID authentication using AzureProvider
+# When running locally, always use localhost for base URL (OAuth redirects need to match)
+oauth_client_store = None
+if RUNNING_IN_PRODUCTION:
+    oauth_container = cosmos_db.get_container_client(os.environ["AZURE_COSMOSDB_OAUTH_CONTAINER"])
+    oauth_client_store = CosmosDBStore(container=oauth_container, default_collection="oauth-clients")
+    entra_base_url = os.environ["ENTRA_PROXY_MCP_SERVER_BASE_URL"]
 else:
-    logger.error("No authentication configured for MCP server, exiting.")
-    raise SystemExit(1)
+    oauth_client_store = MemoryStore()
+    entra_base_url = "http://localhost:8000"
+auth = AzureProvider(
+    client_id=os.environ["ENTRA_PROXY_AZURE_CLIENT_ID"],
+    client_secret=os.environ["ENTRA_PROXY_AZURE_CLIENT_SECRET"],
+    tenant_id=os.environ["AZURE_TENANT_ID"],
+    base_url=entra_base_url,
+    required_scopes=["mcp-access"],
+    client_storage=oauth_client_store,
+)
+logger.info("Using Entra OAuth Proxy for server %s and %s storage", entra_base_url, type(oauth_client_store).__name__)
 
 confidential_client = ConfidentialClientApplication(
     client_id=os.environ["ENTRA_PROXY_AZURE_CLIENT_ID"],
@@ -141,6 +118,7 @@ async def check_user_in_group(graph_token: str, group_id: str) -> bool:
             "https://graph.microsoft.com/v1.0/me/transitiveMemberOf/microsoft.graph.group"
             f"?$filter=id eq '{group_id}'&$count=true"
         )
+        logger.info(f"Checking group membership for group ID: {group_id}")
         response = await client.get(
             url,
             headers={
@@ -150,7 +128,9 @@ async def check_user_in_group(graph_token: str, group_id: str) -> bool:
         )
         response.raise_for_status()
         data = response.json()
-        return data.get("@odata.count", 0) > 0
+        membership_count = data.get("@odata.count", 0)
+        logger.info(f"User membership count in group {group_id}: {membership_count}")
+        return membership_count > 0
 
 
 # Middleware to populate user_id in per-request context state
@@ -159,8 +139,7 @@ class UserAuthMiddleware(Middleware):
         token = get_access_token()
         if not (token and hasattr(token, "claims")):
             return None
-        # Return 'oid' claim if present (for Entra), otherwise fallback to 'sub' (for KeyCloak)
-        return token.claims.get("oid", token.claims.get("sub"))
+        return token.claims.get("oid")
 
     async def on_call_tool(self, context: MiddlewareContext, call_next):
         user_id = self._get_user_id()
@@ -177,8 +156,6 @@ class UserAuthMiddleware(Middleware):
 
 # Create the MCP server
 mcp = FastMCP("Expenses Tracker", auth=auth, middleware=[OpenTelemetryMiddleware("ExpensesMCP"), UserAuthMiddleware()])
-
-"""Expense tracking MCP server with authentication and Cosmos DB storage."""
 
 
 class PaymentMethod(Enum):

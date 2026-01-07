@@ -520,7 +520,7 @@ Después del despliegue, podés probar localmente con OAuth habilitado:
 
 ```bash
 # Correr el servidor MCP
-cd servers && uvicorn auth_mcp:app --host 0.0.0.0 --port 8000
+cd servers && uvicorn auth_entra_mcp:app --host 0.0.0.0 --port 8000
 ```
 
 El servidor usará la App Registration de Entra para OAuth y CosmosDB para almacenamiento de clientes.

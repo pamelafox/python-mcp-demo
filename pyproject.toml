@@ -5,7 +5,7 @@ description = "Demonstration of Python FastMCP servers"
 readme = "README.md"
 requires-python = "==3.13.*"
 dependencies = [
-    "fastmcp>=2.13.3",
+    "fastmcp>=2.14.2",
     "debugpy>=1.8.0",
     "langchain-core>=0.3.0",
     "mcp>=1.3.0",
@@ -18,9 +18,9 @@ dependencies = [
     "azure-ai-agents>=1.1.0",
     "agent-framework>=1.0.0b251016",
     "azure-cosmos>=4.9.0",
-    "azure-monitor-opentelemetry>=1.6.4",
-    "opentelemetry-instrumentation-starlette>=0.49b0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.28.0",
+    "azure-monitor-opentelemetry>=1.8.3",
+    "opentelemetry-instrumentation-starlette>=0.60b0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.39.0",
     "logfire>=4.15.1",
     "azure-core-tracing-opentelemetry>=1.0.0b12"
 ]
