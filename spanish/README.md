@@ -16,7 +16,7 @@ Un proyecto de demostración que muestra implementaciones del Model Context Prot
 - [Correr Agentes <-> MCP](#correr-agentes---mcp)
 - [Desplegar en Azure](#desplegar-en-azure)
 - [Desplegar en Azure con red privada](#desplegar-en-azure-con-red-privada)
-- [Desplegar en Azure con autenticación Keycloak](#desplegar-en-azure-con-autenticacion-keycloak)
+- [Desplegar en Azure con autenticación Keycloak](#desplegar-en-azure-con-autenticación-keycloak)
 - [Desplegar en Azure con Entra OAuth Proxy](#desplegar-en-azure-con-entra-oauth-proxy)
 
 ## Empezar
@@ -77,7 +77,7 @@ Si no usás una de las opciones anteriores, necesitás:
 Este proyecto incluye servidores MCP en el directorio [`servers/`](../servers/):
 
 | Archivo | Descripción |
-|------|-------------|
+| ------- | ----------- |
 | [servers/basic_mcp_stdio.py](../servers/basic_mcp_stdio.py) | Servidor MCP con transporte stdio para integración con VS Code |
 | [servers/basic_mcp_http.py](../servers/basic_mcp_http.py) | Servidor MCP con transporte HTTP en el puerto 8000 |
 | [servers/deployed_mcp.py](../servers/deployed_mcp.py) | Servidor MCP para despliegue en Azure con Cosmos DB y autenticación opcional con Keycloak |
@@ -200,7 +200,7 @@ Podés usar el [.NET Aspire Dashboard](https://learn.microsoft.com/dotnet/aspire
 Este proyecto incluye agentes de ejemplo en el directorio [`agents/`](../agents/) que demuestran cómo conectar agentes de IA a servidores MCP:
 
 | Archivo | Descripción |
-|------|-------------|
+| ------- | ----------- |
 | [agents/agentframework_learn.py](../agents/agentframework_learn.py) | Integración del Microsoft Agent Framework con MCP |
 | [agents/agentframework_http.py](../agents/agentframework_http.py) | Integración del Microsoft Agent Framework con el servidor MCP de gastos local |
 | [agents/langchainv1_http.py](../agents/langchainv1_http.py) | Agente LangChain con integración MCP |
@@ -339,7 +339,7 @@ Este proyecto soporta desplegar con autenticación OAuth 2.0 usando Keycloak com
 ### Qué se despliega
 
 | Componente | Descripción |
-|-----------|-------------|
+| ---------- | ----------- |
 | **Container App de Keycloak** | Keycloak 26.0 con realm preconfigurado |
 | **Configuración de rutas HTTP** | Enrutamiento basado en reglas: `/auth/*` → Keycloak, `/*` → Servidor MCP |
 | **Servidor MCP protegido con OAuth** | FastMCP con validación JWT contra el endpoint JWKS de Keycloak |
@@ -449,7 +449,7 @@ Para usar el servidor MCP desplegado con GitHub Copilot Chat:
 ### Limitaciones conocidas (trade-offs de la demo)
 
 | Ítem | Actual | Recomendación para producción | Por qué |
-|------|--------|-------------------------------|--------|
+| ---- | ------ | ----------------------------- | ------- |
 | Modo de Keycloak | `start-dev` | `start` con configuración adecuada | El modo dev tiene defaults de seguridad relajados |
 | Base de datos | H2 en memoria | PostgreSQL | H2 no persiste datos entre reinicios |
 | Réplicas | 1 (por H2) | Múltiples con DB compartida | H2 es en memoria, no comparte estado |
@@ -467,7 +467,7 @@ Este proyecto soporta desplegar con Microsoft Entra ID (Azure AD) usando el prox
 ### Qué se despliega con Entra OAuth
 
 | Componente | Descripción |
-|-----------|-------------|
+| ---------- | ----------- |
 | **App Registration de Microsoft Entra** | Se crea automáticamente durante el aprovisionamiento con URIs de redirección para desarrollo local, VS Code y producción |
 | **Servidor MCP protegido con OAuth** | FastMCP con AzureProvider para autenticación OAuth |
 | **Almacenamiento de clientes OAuth en CosmosDB** | Persiste registros de clientes OAuth entre reinicios del servidor |
@@ -507,10 +507,10 @@ Este proyecto soporta desplegar con Microsoft Entra ID (Azure AD) usando el prox
 
 Las siguientes variables de entorno se definen automáticamente por los hooks de despliegue:
 
-| Variable | Descripción |
-|----------|-------------|
-| `ENTRA_PROXY_AZURE_CLIENT_ID` | ID de cliente de la App Registration |
-| `ENTRA_PROXY_AZURE_CLIENT_SECRET` | Secreto de cliente de la App Registration |
+| Variable                            | Descripción                               |
+| ----------------------------------- | ----------------------------------------- |
+| `ENTRA_PROXY_AZURE_CLIENT_ID`       | ID de cliente de la App Registration      |
+| `ENTRA_PROXY_AZURE_CLIENT_SECRET`   | Secreto de cliente de la App Registration |
 
 Estas luego se escriben a `.env` por el hook de postprovision para desarrollo local.
 

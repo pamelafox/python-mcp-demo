@@ -77,7 +77,7 @@ If you're not using one of the above options, then you'll need to:
 This project includes MCP servers in the [`servers/`](servers/) directory:
 
 | File | Description |
-|------|-------------|
+| ---- | ----------- |
 | [servers/basic_mcp_stdio.py](servers/basic_mcp_stdio.py) | MCP server with stdio transport for VS Code integration |
 | [servers/basic_mcp_http.py](servers/basic_mcp_http.py) | MCP server with HTTP transport on port 8000 |
 | [servers/deployed_mcp.py](servers/deployed_mcp.py) | MCP server for Azure deployment with Cosmos DB and optional Keycloak auth |
@@ -200,7 +200,7 @@ You can use the [.NET Aspire Dashboard](https://learn.microsoft.com/dotnet/aspir
 This project includes example agents in the [`agents/`](agents/) directory that demonstrate how to connect AI agents to MCP servers:
 
 | File | Description |
-|------|-------------|
+| ---- | ----------- |
 | [agents/agentframework_learn.py](agents/agentframework_learn.py) | Microsoft Agent Framework integration with MCP |
 | [agents/agentframework_http.py](agents/agentframework_http.py) | Microsoft Agent Framework integration with local Expenses MCP server |
 | [agents/langchainv1_http.py](agents/langchainv1_http.py) | LangChain agent with MCP integration |
@@ -380,10 +380,12 @@ When using VNet configuration, additional Azure resources are provisioned:
 
 This project supports deploying with OAuth 2.0 authentication using Keycloak as the identity provider, implementing the [MCP OAuth specification](https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization) with Dynamic Client Registration (DCR).
 
+[📺 Watch a demo video of Keycloak integration](https://youtu.be/lpH8PI4JgEY)
+
 ### What gets deployed
 
 | Component | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | **Keycloak Container App** | Keycloak 26.0 with pre-configured realm |
 | **HTTP Route Configuration** | Rule-based routing: `/auth/*` → Keycloak, `/*` → MCP Server |
 | **OAuth-protected MCP Server** | FastMCP with JWT validation against Keycloak's JWKS endpoint |
@@ -432,7 +434,6 @@ This project supports deploying with OAuth 2.0 authentication using Keycloak as 
 
    Login with `admin` and your configured password.
 
-
 ### Use Keycloak OAuth MCP server with GitHub Copilot
 
 The Keycloak deployment supports Dynamic Client Registration (DCR), which allows VS Code to automatically register as an OAuth client. VS Code redirect URIs are pre-configured in the Keycloak realm.
@@ -476,7 +477,7 @@ To use the deployed MCP server with GitHub Copilot Chat:
 ### Known limitations (demo trade-offs)
 
 | Item | Current | Production Recommendation | Why |
-|------|---------|---------------------------|-----|
+| ---- | ------- | ------------------------- | --- |
 | Keycloak mode | `start-dev` | `start` with proper config | Dev mode has relaxed security defaults |
 | Database | H2 in-memory | PostgreSQL | H2 doesn't persist data across restarts |
 | Replicas | 1 (due to H2) | Multiple with shared DB | H2 is in-memory, can't share state |
@@ -491,10 +492,12 @@ To use the deployed MCP server with GitHub Copilot Chat:
 
 This project supports deploying with Microsoft Entra ID (Azure AD) authentication using FastMCP's built-in Azure OAuth proxy. This is an alternative to Keycloak that uses Microsoft Entra with your Azure tenant for identity management.
 
+[📺 Watch a demo video of Entra integration](https://youtu.be/nOPXUBOXU2M)
+
 ### What gets deployed with Entra OAuth
 
 | Component | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | **Microsoft Entra App Registration** | Created automatically during provisioning with redirect URIs for local development, VS Code, and production |
 | **OAuth-protected MCP Server** | FastMCP with AzureProvider for OAuth authentication |
 | **CosmosDB OAuth Client Storage** | Persists OAuth client registrations across server restarts |
@@ -534,10 +537,10 @@ This project supports deploying with Microsoft Entra ID (Azure AD) authenticatio
 
 The following environment variables are automatically set by the deployment hooks:
 
-| Variable | Description |
-|----------|-------------|
-| `ENTRA_PROXY_AZURE_CLIENT_ID` | The App Registration's client ID |
-| `ENTRA_PROXY_AZURE_CLIENT_SECRET` | The App Registration's client secret |
+| Variable                            | Description                             |
+| ----------------------------------- | --------------------------------------- |
+| `ENTRA_PROXY_AZURE_CLIENT_ID`       | The App Registration's client ID        |
+| `ENTRA_PROXY_AZURE_CLIENT_SECRET`   | The App Registration's client secret    |
 
 These are then written to `.env` by the postprovision hook for local development.
 

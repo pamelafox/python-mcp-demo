@@ -262,7 +262,11 @@ async def get_expense_stats(ctx: Context):
             user_assertion=auth_token, scopes=["https://graph.microsoft.com/.default"]
         )
         if "error" in graph_resource_access_token:
-            return "Error: Unable to obtain Graph API access token for authorization check"
+            logger.error(
+                "OBO token acquisition failed: %s",
+                graph_resource_access_token.get("error_description", "Unknown error"),
+            )
+            return "Error: Unable to verify permissions. Please try again later."
 
         graph_auth_token = graph_resource_access_token["access_token"]
 
@@ -292,9 +296,9 @@ async def get_expense_stats(ctx: Context):
 
         return summary
 
-    except Exception as e:
-        logger.error(f"Error retrieving expense stats: {str(e)}")
-        return f"Error: Unable to retrieve expense statistics - {str(e)}"
+    except Exception:
+        logger.error("Error retrieving expense stats", exc_info=True)
+        return "Error: Unable to retrieve expense statistics. Please try again later."
 
 
 @mcp.custom_route("/health", methods=["GET"])

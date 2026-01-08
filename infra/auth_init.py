@@ -258,7 +258,7 @@ async def main():
 
     server_app_id = await create_or_update_fastmcp_app(graph_client)
 
-    print("Attempting to grant admin consent for the client and server applications...")
+    print("Attempting to grant admin consent for the server application...")
     await grant_application_admin_consent(graph_client, server_app_id)
 
     print("✅ Entra app registration setup is complete.")
