@@ -192,7 +192,7 @@ You can use the [.NET Aspire Dashboard](https://learn.microsoft.com/dotnet/aspir
    uv run servers/basic_mcp_http.py
    ```
 
-4. View the dashboard at: http://localhost:18888
+4. View the dashboard at: [http://localhost:18888](http://localhost:18888)
 
 ---
 
@@ -524,7 +524,7 @@ This project supports deploying with Microsoft Entra ID (Azure AD) authenticatio
    ```
 
    During deployment:
-   - **Preprovision hook**: Creates a Microsoft Entra App Registration with a client secret, and stores the credentials in azd environment variables
+   - **Preprovision hook**: Creates a Microsoft Entra App Registration with a client secret, and stores the credentials in azd environment variables `ENTRA_PROXY_AZURE_CLIENT_ID` and `ENTRA_PROXY_AZURE_CLIENT_SECRET`
    - **Postprovision hook**: Updates the App Registration with the deployed server URL as an additional redirect URI
 
 4. Verify deployment by checking the outputs:
@@ -533,17 +533,6 @@ This project supports deploying with Microsoft Entra ID (Azure AD) authenticatio
    azd env get-value MCP_SERVER_URL
    azd env get-value ENTRA_PROXY_AZURE_CLIENT_ID
    ```
-
-### Environment variables
-
-The following environment variables are automatically set by the deployment hooks:
-
-| Variable                            | Description                             |
-| ----------------------------------- | --------------------------------------- |
-| `ENTRA_PROXY_AZURE_CLIENT_ID`       | The App Registration's client ID        |
-| `ENTRA_PROXY_AZURE_CLIENT_SECRET`   | The App Registration's client secret    |
-
-These are then written to `.env` by the postprovision hook for local development.
 
 ### Testing the Entra OAuth server locally
 
@@ -592,6 +581,6 @@ To use the deployed MCP server with GitHub Copilot Chat:
 
 ## Resources
 
-* [Video series: Python + MCP (December 2025)](https://techcommunity.microsoft.com/blog/azuredevcommunityblog/learn-how-to-build-mcp-servers-with-python-and-azure/4479402)
-* [MCP for beginners: Online tutorial](https://github.com/microsoft/mcp-for-beginners)
-* [Python MCP servers on Azure Functions](https://github.com/Azure-Samples/mcp-sdk-functions-hosting-python)
+- [Video series: Python + MCP (December 2025)](https://techcommunity.microsoft.com/blog/azuredevcommunityblog/learn-how-to-build-mcp-servers-with-python-and-azure/4479402)
+- [MCP for beginners: Online tutorial](https://github.com/microsoft/mcp-for-beginners)
+- [Python MCP servers on Azure Functions](https://github.com/Azure-Samples/mcp-sdk-functions-hosting-python)

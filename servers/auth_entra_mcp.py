@@ -50,7 +50,7 @@ logging.basicConfig(
         )
     ],
 )
-# Suppress OTEL 1.39 deprecation warnings and noisy logs
+# Suppress OTEL 1.39 deprecation warnings from dependencies; TODO: remove once dependencies update
 warnings.filterwarnings("ignore", category=DeprecationWarning, message=r".*Deprecated since version 1\.39\.0.*")
 logging.getLogger("azure.monitor.opentelemetry.exporter._performance_counters._manager").setLevel(logging.ERROR)
 logger = logging.getLogger("ExpensesMCP")
@@ -107,6 +107,7 @@ confidential_client = ConfidentialClientApplication(
     client_id=os.environ["ENTRA_PROXY_AZURE_CLIENT_ID"],
     client_credential=os.environ["ENTRA_PROXY_AZURE_CLIENT_SECRET"],
     authority=f"https://login.microsoftonline.com/{os.environ['AZURE_TENANT_ID']}",
+    # Token cache for OBO flow; see https://learn.microsoft.com/entra/msal/python/advanced/msal-python-token-cache-serialization
     token_cache=TokenCache(),
 )
 
@@ -126,7 +127,7 @@ async def check_user_in_group(graph_token: str, group_id: str) -> bool:
                 "ConsistencyLevel": "eventual",
             },
         )
-        response.raise_for_status()
+        response.raise_for_status()  # Errors handled by caller's except block
         data = response.json()
         membership_count = data.get("@odata.count", 0)
         logger.info(f"User membership count in group {group_id}: {membership_count}")
@@ -281,6 +282,7 @@ async def get_expense_stats(ctx: Context):
 
         # Query Cosmos DB for stats across all users
         # We fetch categories and aggregate in Python to avoid cross-partition GROUP BY limitations
+        # Note: For production, consider adding TOP N or pagination to limit RU consumption
         query = "SELECT c.category FROM c"
         stats = {}
         async for item in cosmos_container.query_items(query=query):

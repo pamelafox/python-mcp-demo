@@ -5,14 +5,14 @@ Un proyecto de demostración que muestra implementaciones del Model Context Prot
 ## Tabla de contenidos
 
 - [Empezar](#empezar)
-   - [GitHub Codespaces](#github-codespaces)
-   - [VS Code Dev Containers](#vs-code-dev-containers)
-   - [Entorno local](#entorno-local)
+  - [GitHub Codespaces](#github-codespaces)
+  - [VS Code Dev Containers](#vs-code-dev-containers)
+  - [Entorno local](#entorno-local)
 - [Correr servidores MCP locales](#correr-servidores-mcp-locales)
-   - [Usar con GitHub Copilot](#usar-con-github-copilot)
-   - [Depurar con VS Code](#depurar-con-vs-code)
-   - [Inspeccionar con MCP Inspector](#inspeccionar-con-mcp-inspector)
-   - [Ver trazas con Aspire Dashboard](#ver-trazas-con-aspire-dashboard)
+  - [Usar con GitHub Copilot](#usar-con-github-copilot)
+  - [Depurar con VS Code](#depurar-con-vs-code)
+  - [Inspeccionar con MCP Inspector](#inspeccionar-con-mcp-inspector)
+  - [Ver trazas con Aspire Dashboard](#ver-trazas-con-aspire-dashboard)
 - [Correr Agentes <-> MCP](#correr-agentes---mcp)
 - [Desplegar en Azure](#desplegar-en-azure)
 - [Desplegar en Azure con red privada](#desplegar-en-azure-con-red-privada)
@@ -191,7 +191,7 @@ Puedes usar el [.NET Aspire Dashboard](https://learn.microsoft.com/dotnet/aspire
    uv run servers/basic_mcp_http.py
    ```
 
-4. Visita el dashboard en: http://localhost:18888
+4. Visita el dashboard en: [http://localhost:18888](http://localhost:18888)
 
 ---
 
@@ -536,7 +536,7 @@ Este proyecto soporta desplegar con Microsoft Entra ID (Azure AD) usando el prox
    ```
 
    Durante el despliegue:
-   - **Hook de preprovision**: Crea una App Registration de Microsoft Entra con un secreto de cliente, y guarda las credenciales en variables de entorno de azd
+   - **Hook de preprovision**: Crea una App Registration de Microsoft Entra con un secreto de cliente, y guarda las credenciales en variables de entorno de azd `ENTRA_PROXY_AZURE_CLIENT_ID` y `ENTRA_PROXY_AZURE_CLIENT_SECRET`
    - **Hook de postprovision**: Actualiza la App Registration con la URL del servidor desplegado como URI de redirección adicional
 
 4. Verifica el despliegue consultando los outputs:
@@ -545,17 +545,6 @@ Este proyecto soporta desplegar con Microsoft Entra ID (Azure AD) usando el prox
    azd env get-value MCP_SERVER_URL
    azd env get-value ENTRA_PROXY_AZURE_CLIENT_ID
    ```
-
-### Variables de entorno
-
-Las siguientes variables de entorno se definen automáticamente por los hooks de despliegue:
-
-| Variable                            | Descripción                               |
-| ----------------------------------- | ----------------------------------------- |
-| `ENTRA_PROXY_AZURE_CLIENT_ID`       | ID de cliente de la App Registration      |
-| `ENTRA_PROXY_AZURE_CLIENT_SECRET`   | Secreto de cliente de la App Registration |
-
-Estas luego se escriben a `.env` por el hook de postprovision para desarrollo local.
 
 ### Probar localmente
 

@@ -223,6 +223,7 @@ async def grant_application_admin_consent(graph_client: GraphServiceClient, serv
 
         current_grant = existing_grants.value[0] if existing_grants and existing_grants.value else None
 
+        # Note: This doesn't check if existing grant has all required scopes; assumes atomic creation
         if current_grant:
             print(f"Admin consent already granted for {desired_scope} on the {grant.target_label}")
             continue
@@ -240,8 +241,7 @@ async def grant_application_admin_consent(graph_client: GraphServiceClient, serv
         except APIError as error:
             status_code = error.response_status_code
             if status_code in {401, 403}:
-                print(f"Failed to grant admin consent: {error.message}")
-                return
+                raise ValueError(f"Failed to grant admin consent: {error.message}")
             else:
                 raise
 
