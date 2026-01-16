@@ -1,0 +1,230 @@
+<p>In December, we presented a <a target="_blank" href="https://aka.ms/pythonmcp/rewatch">series about MCP</a>, culminating in a session about adding authentication to MCP servers.
+I demoed a Python MCP server that uses <a target="_blank" href="https://learn.microsoft.com/entra/fundamentals/whatis">Microsoft Entra</a> for authentication, requiring users to first login to the Microsoft tenant before they could use a tool.
+Many developers asked how they could take the Entra integration further, like to check the user's group membership or query their OneDrive.
+That requires using an <a target="_blank" href="https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow">"on-behalf-of" flow</a>, also known as "delegation" in OAuth, where the MCP server uses the user's identity to call another API, like the <a target="_blank" href="https://learn.microsoft.com/graph/overview">Microsoft Graph API</a>.
+I extended the demo server with an OBO flow, and will explain how it works in this blog post.</p>
+
+<h2>How MCP servers can use Entra authentication</h2>
+
+<p>The <a target="_blank" href="https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization">MCP authorization specification</a> is based on OAuth2, but with some additional OAuth2 features tacked on top. Every <strong>MCP client</strong> is actually an <strong>OAuth2 client</strong>, and each <strong>MCP server</strong> is an <strong>OAuth2 resource server</strong>. MCP auth adds these features:</p>
+
+<ul>
+  <li>Protected resource metadata (PRM): Implemented on the MCP server, provides details about the authorization server and method</li>
+  <li>Authorization server metadata: Implemented on the authorization server, gives URLs for OAuth2 endpoints</li>
+  <li>Dynamic Client Registration (DCR): Implemented on the authorization server, it can register new MCP clients as OAuth2 clients, even if it hasn't seen them before.</li>
+  <li>Client ID Metadata Documents (CIMD): An alternative to DCR, this requires both the MCP client to make a CIMD document available on a server, and requires the authorization server to fetch the CIMD document for details about the client.</li>
+</ul>
+
+<p>Microsoft Entra does support authorization server metadata, but it does not support either DCR or CIMD. That's actually fine if you are building an MCP server that's only going to be used with pre-authorized clients, like if the server will only be used with VS Code or with a specific internal MCP client. But, if you are building an MCP server that can be used with arbitrary MCP clients, then either DCR or CIMD is required. So what do we do?</p>
+
+<p>Fortunately, the <a target="_blank" href="https://gofastmcp.com/">FastMCP</a> SDK implements <a target="_blank" href="https://gofastmcp.com/integrations/azure">DCR on top of Entra</a> using an OAuth proxy pattern. FastMCP acts as the authorization server, intercepting requests and forwarding to Entra when needed, and storing OAuth client information in a designated database (like in-memory or <a target="_blank" href="https://learn.microsoft.com/azure/cosmos-db/introduction">Cosmos DB</a>).</p>
+
+<img alt="" border="0" data-original-height="480" data-original-width="1072" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgiASwccA1SpE3eIhgi7_lQcwo3gPOkYFwQtGedSx19qw3Nxmiz07XWRlafkzHz8V7ATYspcj64kN5bwY24H8TDIPK_Kbf21CNQSj8E23dOM7ja3gd39Wq9fcf86RO8a6e1kkhtVykNhDGTD8FZeVROeASl_dFSR6wa9VtLZpmJeb_fthjdl05cj9a-Cw/s1600/Screenshot%202026-01-16%20at%2010.10.23%E2%80%AFAM.png"/>
+
+<p>
+Let's walk through the steps to set that up.
+</p>
+
+<h2>Registering the server with Entra</h2>
+
+<p>Before the server can use Entra to authorize users, we need to register the server with Entra via an app registration. We can do that using the Azure Portal, Azure CLI, Microsoft Graph SDK, or even Bicep. In this case, I use the Graph SDK as it allows me to specify everything programmatically.</p>
+
+<p>First, I create the Entra app registration, specifying the sign-in audience (single-tenant), redirect URIs (including local MCP server and VS Code redirect URIs), and the scopes for the exposed API.</p>
+
+<pre><code>request_app = Application(
+  display_name="FastMCP Server App",
+  sign_in_audience="AzureADMyOrg",  # Single tenant
+  web=WebApplication(
+   redirect_uris=[
+        "http://localhost:8000/auth/callback",
+        "https://vscode.dev/redirect",
+        "http://127.0.0.1:33418",
+        "https://deployedurl.com/auth/callback"
+    ],
+  ),
+  api=ApiApplication(
+    oauth2_permission_scopes=[
+      PermissionScope(
+        id=uuid.UUID("{" + str(uuid.uuid4()) + "}"),
+        admin_consent_display_name="Access FastMCP Server",
+        admin_consent_description="Allows access to the FastMCP server as the signed-in user.",
+        user_consent_display_name="Access FastMCP Server",
+        user_consent_description="Allow access to the FastMCP server on your behalf",
+        is_enabled=True,
+        value="mcp-access",
+        type="User",
+      )],
+    requested_access_token_version=2,  # Required by FastMCP
+  )
+)
+app = await graph_client.applications.post(request_app)
+
+await graph_client.applications.by_application_id(app.id).patch(
+  Application(identifier_uris=[f"api://{app.app_id}"]))
+</code></pre>
+
+<p>Thanks to that configuration, when an MCP client like VS Code requests an OAuth2 token, it will request a token with the scope "api://{app.app_id}/mcp-access", and the FastMCP server will validate that incoming tokens contain that scope.</p>
+
+<p>Next, I create a <a target="_blank" href="https://learn.microsoft.com/entra/identity-platform/app-objects-and-service-principals?tabs=browser">Service Principal</a> for that Entra app registration, which represents the Entra app in my tenant</p>
+
+<pre><code>request_principal = ServicePrincipal(app_id=app.app_id, display_name=app.display_name)
+await graph_client.service_principals.post(request_principal)</code></pre>
+
+<p>I need a way for the FastMCP server to prove that it can use that Entra app registration, so I register a secret:<p>
+
+<pre><code>password_credential = await graph_client.applications.by_application_id(app.id).add_password.post(
+  AddPasswordPostRequestBody(
+    password_credential=PasswordCredential(display_name="FastMCPSecret")))
+</code></pre>
+
+<p>I would like to move away from secrets, as Entra now has support for using <a target="_blank" href="https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity">federated identity credentials</a> for Entra app registrations instead, but that would require a significant change to the FastMCP SDK. Make sure that you store secrets securely, if you choose to use them as well.</p>
+
+
+<h3>Granting admin consent</h3>
+
+<p>This next step is only necessary when our MCP server wants to use an OBO flow to exchange access tokens for other resource server tokens (Graph API tokens, here). For the OBO flow to work, the Entra app registration needs permission to call the Graph API on behalf of users. If we controlled the client, we could force it to request the required scopes as part of the initial login dialog. However, since we are configuring this server to work with arbitrary MCP clients, we don't have that option. Instead, we grant <a target="_blank" href="https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow#admin-consent">admin consent</a> to the Entra app for the necessary scopes, such that no Graph API consent dialog is needed.</p>
+
+<p>This code grants the admin consent to the associated service principal for the Graph API resource and scopes:</p>
+
+<pre><code>
+server_principal = await graph_client.service_principals_with_app_id(app.app_id).get()
+grant = GrantDefinition(
+    principal_id=server_principal.id,
+    resource_app_id="00000003-0000-0000-c000-000000000000", # Graph API
+    scopes=["User.Read", "email", "offline_access", "openid", "profile"],
+    target_label="server application")
+resource_principal = await graph_client.service_principals_with_app_id(grant.resource_app_id).get()
+desired_scope = grant.scope_string()
+await graph_client.oauth2_permission_grants.post(
+  OAuth2PermissionGrant(
+    client_id=grant.principal_id,
+    consent_type="AllPrincipals",
+    resource_id=resource_principal.id,
+    scope=desired_scope))
+</code></pre>
+
+<p>If our MCP server needed to use an OBO flow with another resource server, we could request additional grants for those resources and scopes.</p>
+
+<p>Our Entra app registration is now ready for the MCP server, so let's move on to see the server code.</p>
+
+<h2>Using FastMCP servers with Entra</h2>
+
+<p>In our MCP server code, we configure FastMCP's built in <a target="_blank" href="https://gofastmcp.com/integrations/azure">AzureProvider</a> based off the details from the Entra app registration process:</p>
+
+<pre><code>
+auth = AzureProvider(
+    client_id=os.environ["ENTRA_PROXY_AZURE_CLIENT_ID"],
+    client_secret=os.environ["ENTRA_PROXY_AZURE_CLIENT_SECRET"],
+    tenant_id=os.environ["AZURE_TENANT_ID"],
+    base_url=entra_base_url, # MCP server URL
+    required_scopes=["mcp-access"],
+    client_storage=oauth_client_store, # in-memory or Cosmos DB
+)</code></pre>
+
+
+<p>To make it easy for our MCP tools to access an identifier for the currently logged in user, we define a middleware that inspects the claims of the current token using FastMCP's <code>get_access_token()</code> and sets the "oid" (Entra object identifier) in the state:</p>
+
+<pre><code>class UserAuthMiddleware(Middleware):
+    def _get_user_id(self):
+        token = get_access_token()
+        if not (token and hasattr(token, "claims")):
+            return None
+        return token.claims.get("oid")
+
+    async def on_call_tool(self, context: MiddlewareContext, call_next):
+        user_id = self._get_user_id()
+        if context.fastmcp_context is not None:
+            context.fastmcp_context.set_state("user_id", user_id)
+        return await call_next(context)
+
+    async def on_read_resource(self, context: MiddlewareContext, call_next):
+        user_id = self._get_user_id()
+        if context.fastmcp_context is not None:
+            context.fastmcp_context.set_state("user_id", user_id)
+        return await call_next(context)
+</code></pre>
+
+<p>When we initialize the FastMCP server, we set the auth provider and include that middleware:</p>
+
+<pre><code>mcp = FastMCP("Expenses Tracker", auth=auth, middleware=[UserAuthMiddleware()])
+</code></pre>
+
+<p>Now, every request made to the MCP server will require authentication. The server will return a 401 if a valid token isn't provided, and that 401 will prompt the MCP client to kick off the MCP authorization flow.</p>
+
+<p>Inside each tool, we can grab the user id from the state, and use that to store or query items in a database, for example.</p>
+
+<pre><code>@mcp.tool
+async def add_user_expense(
+    date: Annotated[date, "Date of the expense in YYYY-MM-DD format"],
+    amount: Annotated[float, "Positive numeric amount of the expense"],
+    description: Annotated[str, "Human-readable description of the expense"],
+    ctx: Context,
+):
+  """Add a new expense to Cosmos DB."""
+  user_id = ctx.get_state("user_id")
+  if not user_id:
+    return "Error: Authentication required (no user_id present)"
+  expense_item = {
+    "id": str(uuid.uuid4()),
+    "user_id": user_id,
+    "date": date.isoformat(),
+    "amount": amount,
+    "description": description
+  }
+  await cosmos_container.create_item(body=expense_item)
+</code></pre>
+
+<h3>Using OBO flow in FastMCP server</h3>
+
+<p>Now we have everything we need to use an OBO flow inside the MCP tools, when desired. To make it easier to exchange and validate tokens, we'll use the <a target="_blank" href="https://learn.microsoft.com/entra/msal/python/">Python MSAL SDK</a>, configuring a <code>ConfidentialClientApplication</code> similarly to how we set up the FastMCP auth provider:</p>
+
+
+<pre><code>
+confidential_client = ConfidentialClientApplication(
+    client_id=os.environ["ENTRA_PROXY_AZURE_CLIENT_ID"],
+    client_credential=os.environ["ENTRA_PROXY_AZURE_CLIENT_SECRET"],
+    authority=f"https://login.microsoftonline.com/{os.environ['AZURE_TENANT_ID']}",
+    token_cache=TokenCache(),
+)</code></pre>
+
+
+<p>Inside the tool that requires OBO, we ask MSAL to exchange the MCP access token for a Graph API access token:
+
+<pre><code>
+access_token = get_access_token()
+graph_resource_access_token = confidential_client.acquire_token_on_behalf_of(
+  user_assertion=access_token.token, scopes=["https://graph.microsoft.com/.default"]
+)
+graph_auth_token = graph_resource_access_token["access_token"]
+</code></pre>
+
+<p>Once we successfully acquire the token, we can use that token with the Graph API, for any operations permitted by the scopes in the admin consent granted earlier. For this example, we call the Graph API to check whether the logged in user is a member of a particular Entra group, and restrict tool usage if not:
+</p>
+
+<pre><code>async with httpx.AsyncClient() as client:
+  url = ("https://graph.microsoft.com/v1.0/me/transitiveMemberOf/microsoft.graph.group"
+    f"?$filter=id eq '{group_id}'&$count=true")
+  response = await client.get(
+    url,
+    headers={
+      "Authorization": f"Bearer {graph_token}",
+      "ConsistencyLevel": "eventual",
+  })
+  data = response.json()
+  membership_count = data.get("@odata.count", 0)
+</code></pre>
+
+
+<p>You could imagine many other ways to use an OBO flow however, like to query for more details from the Graph API, upload documents to OneDrive/SharePoint/Notes, send emails, and more!</p>
+
+
+<h2>All together now</h2>
+
+<p>For the full code, check out the open source <a target="_blank" href="https://github.com/Azure-Samples/python-mcp-demos">python-mcp-demos repository</a>, and follow the deployment steps for Entra. The most relevant code files are:</p>
+  <ul>
+    <li><a target="_blank" href="https://github.com/Azure-Samples/python-mcp-demos/blob/main/infra/auth_init.py">auth_init.py</a>: Creates the Entra app registration, service principal, client secret, and grants admin consent for OBO flow.</li>
+    <li><a target="_blank" href="https://github.com/Azure-Samples/python-mcp-demos/blob/main/infra/auth_update.py">auth_update.py</a>: Updates the app registration's redirect URIs after deployment, adding the deployed server URL.</li>
+    <li><a target="_blank" href="https://github.com/Azure-Samples/python-mcp-demos/blob/main/servers/auth_entra_mcp.py">auth_entra_mcp.py</a>: The MCP server itself, configured with FastMCP's AzureProvider and tools that use OBO for group membership checks.</li>
+  </ul>
+<p>
+  As always, please let me know if you have further questions or ideas for other Entra integrations.</p>
