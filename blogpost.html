@@ -1,25 +1,37 @@
 <p>In December, we presented a <a target="_blank" href="https://aka.ms/pythonmcp/rewatch">series about MCP</a>, culminating in a session about adding authentication to MCP servers.
 I demoed a Python MCP server that uses <a target="_blank" href="https://learn.microsoft.com/entra/fundamentals/whatis">Microsoft Entra</a> for authentication, requiring users to first login to the Microsoft tenant before they could use a tool.
 Many developers asked how they could take the Entra integration further, like to check the user's group membership or query their OneDrive.
-That requires using an <a target="_blank" href="https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow">"on-behalf-of" flow</a>, also known as "delegation" in OAuth, where the MCP server uses the user's identity to call another API, like the <a target="_blank" href="https://learn.microsoft.com/graph/overview">Microsoft Graph API</a>.
-I extended the demo server with an OBO flow, and will explain how it works in this blog post.</p>
+That requires using an <a target="_blank" href="https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow">"on-behalf-of" flow</a>, also known as "delegation" in OAuth, where the MCP server uses the user's identity to call another API, like the <a target="_blank" href="https://learn.microsoft.com/graph/overview">Microsoft Graph API</a>.
+In this blog post, I will explain how to use Entra with OBO flow in a Python FastMCP server.</p>
 
 <h2>How MCP servers can use Entra authentication</h2>
 
-<p>The <a target="_blank" href="https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization">MCP authorization specification</a> is based on OAuth2, but with some additional OAuth2 features tacked on top. Every <strong>MCP client</strong> is actually an <strong>OAuth2 client</strong>, and each <strong>MCP server</strong> is an <strong>OAuth2 resource server</strong>. MCP auth adds these features:</p>
+
+<p>The <a target="_blank" href="https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization">MCP authorization specification</a> is based on OAuth2, but with some additional features tacked on top. Every <strong>MCP client</strong> is actually an <strong>OAuth2 client</strong>, and each <strong>MCP server</strong> is an <strong>OAuth2 resource server</strong>.</p>
+
+<img alt="Diagram of OAuth 2.1 entities with MCP client and server" border="0" data-original-height="446" data-original-width="1158" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh7Qdgfkeqg2qCt7YgP399vUPvLsINoQ-tsU_uiLLgqWIP1fP5vSL19uuJFCdkc5GYa7dMDhR1Qe2gCBfmlRDF2nGNTajwXy6o8P-DKL5Yav97Z21KY9K1ZwN4RQgQorh-Iwu-Ck5Ciwc2J_DB1XaHUaChLQqjiczmCEY_5QcUeV9uCXCV-FbRUBylNfg/s1600/Screenshot%202026-01-16%20at%2012.13.34%E2%80%AFPM.png"/>
+
+<p>MCP auth adds these features to help clients determine how to authorize a server:</p>
 
 <ul>
   <li>Protected resource metadata (PRM): Implemented on the MCP server, provides details about the authorization server and method</li>
   <li>Authorization server metadata: Implemented on the authorization server, gives URLs for OAuth2 endpoints</li>
+</ul>
+
+<p>Additionally, to allow MCP servers to work with arbitrary MCP clients, MCP auth supports either of these client registration methods:</p>
+<ul>
   <li>Dynamic Client Registration (DCR): Implemented on the authorization server, it can register new MCP clients as OAuth2 clients, even if it hasn't seen them before.</li>
   <li>Client ID Metadata Documents (CIMD): An alternative to DCR, this requires both the MCP client to make a CIMD document available on a server, and requires the authorization server to fetch the CIMD document for details about the client.</li>
 </ul>
 
-<p>Microsoft Entra does support authorization server metadata, but it does not support either DCR or CIMD. That's actually fine if you are building an MCP server that's only going to be used with pre-authorized clients, like if the server will only be used with VS Code or with a specific internal MCP client. But, if you are building an MCP server that can be used with arbitrary MCP clients, then either DCR or CIMD is required. So what do we do?</p>
+<p>Microsoft Entra does support authorization server metadata, but it does not support either DCR or CIMD.
+That's actually fine if you are building an MCP server that's only going to be used with pre-authorized clients, like if the server will only be used with VS Code or with a specific internal MCP client.
+But, if you are building an MCP server that can be used with arbitrary MCP clients, then either DCR or CIMD is required.
+So what do we do?</p>
 
 <p>Fortunately, the <a target="_blank" href="https://gofastmcp.com/">FastMCP</a> SDK implements <a target="_blank" href="https://gofastmcp.com/integrations/azure">DCR on top of Entra</a> using an OAuth proxy pattern. FastMCP acts as the authorization server, intercepting requests and forwarding to Entra when needed, and storing OAuth client information in a designated database (like in-memory or <a target="_blank" href="https://learn.microsoft.com/azure/cosmos-db/introduction">Cosmos DB</a>).</p>
 
-<img alt="" border="0" data-original-height="480" data-original-width="1072" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgiASwccA1SpE3eIhgi7_lQcwo3gPOkYFwQtGedSx19qw3Nxmiz07XWRlafkzHz8V7ATYspcj64kN5bwY24H8TDIPK_Kbf21CNQSj8E23dOM7ja3gd39Wq9fcf86RO8a6e1kkhtVykNhDGTD8FZeVROeASl_dFSR6wa9VtLZpmJeb_fthjdl05cj9a-Cw/s1600/Screenshot%202026-01-16%20at%2010.10.23%E2%80%AFAM.png"/>
+<img alt="Diagram of OAuth proxy pattern" border="0" data-original-height="480" data-original-width="1072" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgiASwccA1SpE3eIhgi7_lQcwo3gPOkYFwQtGedSx19qw3Nxmiz07XWRlafkzHz8V7ATYspcj64kN5bwY24H8TDIPK_Kbf21CNQSj8E23dOM7ja3gd39Wq9fcf86RO8a6e1kkhtVykNhDGTD8FZeVROeASl_dFSR6wa9VtLZpmJeb_fthjdl05cj9a-Cw/s1600/Screenshot%202026-01-16%20at%2010.10.23%E2%80%AFAM.png"/>
 
 <p>
 Let's walk through the steps to set that up.
@@ -77,7 +89,7 @@ await graph_client.service_principals.post(request_principal)</code></pre>
     password_credential=PasswordCredential(display_name="FastMCPSecret")))
 </code></pre>
 
-<p>I would like to move away from secrets, as Entra now has support for using <a target="_blank" href="https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity">federated identity credentials</a> for Entra app registrations instead, but that would require a significant change to the FastMCP SDK. Make sure that you store secrets securely, if you choose to use them as well.</p>
+<p>I would like to move away from secrets, as Entra now has support for using <a target="_blank" href="https://learn.microsoft.com/entra/workload-id/workload-identity-federation-config-app-trust-managed-identity">federated identity credentials</a> for Entra app registrations instead, but that form of credential isn't supported yet in the FastMCP SDK. Make sure that you store secrets securely, if you choose to use them as well.</p>
 
 
 <h3>Granting admin consent</h3>
