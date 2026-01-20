@@ -144,13 +144,13 @@ class UserAuthMiddleware(Middleware):
     async def on_call_tool(self, context: MiddlewareContext, call_next):
         user_id = self._get_user_id()
         if context.fastmcp_context is not None:
-            context.fastmcp_context.set_state("user_id", user_id)
+            await context.fastmcp_context.set_state("user_id", user_id)
         return await call_next(context)
 
     async def on_read_resource(self, context: MiddlewareContext, call_next):
         user_id = self._get_user_id()
         if context.fastmcp_context is not None:
-            context.fastmcp_context.set_state("user_id", user_id)
+            await context.fastmcp_context.set_state("user_id", user_id)
         return await call_next(context)
 
 
@@ -191,7 +191,7 @@ async def add_user_expense(
 
     try:
         # Read user_id stored by middleware
-        user_id = ctx.get_state("user_id")
+        user_id = await ctx.get_state("user_id")
         if not user_id:
             return "Error: Authentication required (no user_id present)"
         expense_id = str(uuid.uuid4())
@@ -217,7 +217,7 @@ async def get_user_expenses(ctx: Context):
     """Get the authenticated user's expense data from Cosmos DB."""
 
     try:
-        user_id = ctx.get_state("user_id")
+        user_id = await ctx.get_state("user_id")
         if not user_id:
             return "Error: Authentication required (no user_id present)"
         query = "SELECT * FROM c WHERE c.user_id = @uid ORDER BY c.date DESC"
