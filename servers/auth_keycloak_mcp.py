@@ -7,6 +7,7 @@ Run with: cd servers && uvicorn auth_keycloak_mcp:app --host 0.0.0.0 --port 8000
 import logging
 import os
 import uuid
+import warnings
 from datetime import date
 from enum import Enum
 from typing import Annotated
@@ -35,7 +36,7 @@ if not RUNNING_IN_PRODUCTION:
 
 logging.basicConfig(
     level=logging.WARNING,
-    format="%(message)s",
+    format="%(name)s: %(message)s",
     handlers=[
         RichHandler(
             console=Console(stderr=True),
@@ -45,6 +46,9 @@ logging.basicConfig(
         )
     ],
 )
+# Suppress OTEL 1.39 deprecation warnings and noisy logs
+warnings.filterwarnings("ignore", category=DeprecationWarning, message=r".*Deprecated since version 1\.39\.0.*")
+logging.getLogger("azure.monitor.opentelemetry.exporter._performance_counters._manager").setLevel(logging.ERROR)
 logger = logging.getLogger("ExpensesMCP")
 logger.setLevel(logging.INFO)
 
