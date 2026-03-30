@@ -67,11 +67,12 @@ If you're not using one of the above options, then you'll need to:
    cp .env-sample .env
    ```
 
-6. Edit `.env` with your API credentials. Choose one of the following providers by setting `API_HOST`:
-   - `github` - GitHub Models (requires `GITHUB_TOKEN`)
+6. Edit `.env` with your API credentials. For the Responses-based LangChain examples, choose one of the following providers by setting `API_HOST`:
    - `azure` - Azure OpenAI (requires Azure credentials)
-   - `ollama` - Local Ollama instance
+   - `ollama` - Local Ollama instance with Responses API support
    - `openai` - OpenAI API (requires `OPENAI_API_KEY`)
+
+   `GITHUB_TOKEN` is still required for [agents/langchainv1_github.py](agents/langchainv1_github.py), but only for GitHub MCP access, not as a model provider.
 
 ## Run local MCP servers
 
