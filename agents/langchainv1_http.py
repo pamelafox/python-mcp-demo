@@ -24,7 +24,7 @@ load_dotenv(override=True)
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp/")
 
 # Configure language model based on API_HOST
-API_HOST = os.getenv("API_HOST", "ollama")
+API_HOST = os.getenv("API_HOST", "azure")
 
 if API_HOST == "azure":
     token_provider = azure.identity.get_bearer_token_provider(
@@ -45,7 +45,7 @@ elif API_HOST == "ollama":
     )
 elif API_HOST == "openai":
     base_model = ChatOpenAI(
-        model=os.getenv("OPENAI_MODEL", "gpt-5.4"),
+        model=os.getenv("OPENAI_MODEL", "gpt-5.2"),
         api_key=SecretStr(os.environ["OPENAI_API_KEY"]),
         use_responses_api=True,
     )

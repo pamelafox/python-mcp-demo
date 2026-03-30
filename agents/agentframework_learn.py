@@ -18,7 +18,7 @@ logger.setLevel(logging.INFO)
 load_dotenv(override=True)
 
 # Configure chat client based on API_HOST
-API_HOST = os.getenv("API_HOST", "ollama")
+API_HOST = os.getenv("API_HOST", "azure")
 async_credential = None
 if API_HOST == "azure":
     async_credential = DefaultAzureCredential()
@@ -36,7 +36,7 @@ elif API_HOST == "ollama":
     )
 elif API_HOST == "openai":
     client = OpenAIResponsesClient(
-        api_key=os.environ.get("OPENAI_API_KEY"), model_id=os.environ.get("OPENAI_MODEL", "gpt-5.4")
+        api_key=os.environ.get("OPENAI_API_KEY"), model_id=os.environ.get("OPENAI_MODEL", "gpt-5.2")
     )
 else:
     raise ValueError(f"Unsupported API_HOST '{API_HOST}'. Use one of: azure, ollama, openai.")

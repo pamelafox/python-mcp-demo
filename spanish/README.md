@@ -66,12 +66,10 @@ Si no usas una de las opciones anteriores, necesitas:
    cp .env-sample .env
    ```
 
-6. Edita `.env` con tus credenciales de API. Para los ejemplos LangChain basados en Responses, elige uno de los siguientes proveedores definiendo `API_HOST`:
+6. Edita `.env` con tus credenciales de API. Elige uno de los siguientes proveedores definiendo `API_HOST`:
    - `azure` - Azure OpenAI (requiere credenciales de Azure)
    - `ollama` - Instancia local de Ollama con soporte para Responses API
    - `openai` - OpenAI API (requiere `OPENAI_API_KEY`)
-
-   `GITHUB_TOKEN` sigue siendo necesario para [agents/langchainv1_github.py](../agents/langchainv1_github.py), pero solo para acceder al MCP de GitHub, no como proveedor de modelo.
 
 ## Correr servidores MCP locales
 
@@ -280,7 +278,7 @@ Los precios varían por región y uso, así que no es posible predecir costos ex
 
 Puedes usar la [calculadora de precios de Azure](https://azure.com/e/3987c81282c84410b491d28094030c9a) para estos recursos:
 
-- **Azure OpenAI Service**: nivel S0, modelo GPT-4o-mini. El precio se basa en tokens. [Precios](https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/)
+- **Azure OpenAI Service**: nivel S0, modelo GPT-5.2. El precio se basa en tokens. [Precios](https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/)
 - **Azure Container Apps**: nivel de consumo. [Precios](https://azure.microsoft.com/pricing/details/container-apps/)
 - **Azure Container Registry**: nivel estándar. [Precios](https://azure.microsoft.com/pricing/details/container-registry/)
 - **Azure Cosmos DB**: nivel serverless. [Precios](https://azure.microsoft.com/pricing/details/cosmos-db/)

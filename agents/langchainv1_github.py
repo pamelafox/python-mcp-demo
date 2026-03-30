@@ -22,7 +22,7 @@ from rich.panel import Panel
 load_dotenv(override=True)
 
 # Configure model
-API_HOST = os.getenv("API_HOST", "ollama")
+API_HOST = os.getenv("API_HOST", "azure")
 if API_HOST == "azure":
     token_provider = azure.identity.get_bearer_token_provider(
         azure.identity.DefaultAzureCredential(),
@@ -43,7 +43,7 @@ elif API_HOST == "ollama":
     )
 elif API_HOST == "openai":
     model = ChatOpenAI(
-        model=os.getenv("OPENAI_MODEL", "gpt-5.4"),
+        model=os.getenv("OPENAI_MODEL", "gpt-5.2"),
         api_key=SecretStr(os.environ["OPENAI_API_KEY"]),
         use_responses_api=True,
     )
