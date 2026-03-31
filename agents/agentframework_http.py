@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 from agent_framework import Agent, MCPStreamableHTTPTool
-from agent_framework.openai import OpenAIChatClient
+from agent_framework.openai import OpenAIResponsesClient
 from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
 from dotenv import load_dotenv
 from rich import print
@@ -24,33 +24,29 @@ if not RUNNING_IN_PRODUCTION:
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp/")
 
 # Configure chat client based on API_HOST
-API_HOST = os.getenv("API_HOST", "github")
+API_HOST = os.getenv("API_HOST", "azure")
 async_credential = None
 
 if API_HOST == "azure":
     async_credential = DefaultAzureCredential()
     token_provider = get_bearer_token_provider(async_credential, "https://cognitiveservices.azure.com/.default")
-    client = OpenAIChatClient(
+    client = OpenAIResponsesClient(
         base_url=f"{os.environ['AZURE_OPENAI_ENDPOINT']}/openai/v1/",
         api_key=token_provider,
         model_id=os.environ["AZURE_OPENAI_CHAT_DEPLOYMENT"],
     )
-elif API_HOST == "github":
-    client = OpenAIChatClient(
-        base_url="https://models.github.ai/inference",
-        api_key=os.environ["GITHUB_TOKEN"],
-        model_id=os.getenv("GITHUB_MODEL", "openai/gpt-4.1-mini"),
-    )
 elif API_HOST == "ollama":
-    client = OpenAIChatClient(
+    client = OpenAIResponsesClient(
         base_url=os.environ.get("OLLAMA_ENDPOINT", "http://localhost:11434/v1"),
-        api_key="none",
-        model_id=os.environ.get("OLLAMA_MODEL", "llama3.1:latest"),
+        api_key=os.getenv("OLLAMA_API_KEY", "no-key-needed"),
+        model_id=os.environ.get("OLLAMA_MODEL", "qwen3.5:9b"),
+    )
+elif API_HOST == "openai":
+    client = OpenAIResponsesClient(
+        api_key=os.environ.get("OPENAI_API_KEY"), model_id=os.environ.get("OPENAI_MODEL", "gpt-5.2")
     )
 else:
-    client = OpenAIChatClient(
-        api_key=os.environ.get("OPENAI_API_KEY"), model_id=os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
-    )
+    raise ValueError(f"Unsupported API_HOST '{API_HOST}'. Use one of: azure, ollama, openai.")
 
 
 # --- Main Agent Logic ---
