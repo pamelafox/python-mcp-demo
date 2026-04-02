@@ -17,8 +17,6 @@ from fastmcp import FastMCP
 from opentelemetry.instrumentation.starlette import StarletteInstrumentor
 from starlette.responses import JSONResponse
 
-from opentelemetry_middleware import OpenTelemetryMiddleware
-
 RUNNING_IN_PRODUCTION = os.getenv("RUNNING_IN_PRODUCTION", "false").lower() == "true"
 
 if not RUNNING_IN_PRODUCTION:
@@ -60,8 +58,7 @@ cosmos_db = cosmos_client.get_database_client(AZURE_COSMOSDB_DATABASE)
 cosmos_container = cosmos_db.get_container_client(AZURE_COSMOSDB_CONTAINER)
 logger.info(f"Connected to Cosmos DB: {AZURE_COSMOSDB_ACCOUNT}")
 
-# Create the MCP server with OpenTelemetry middleware
-mcp = FastMCP("Expenses Tracker", middleware=[OpenTelemetryMiddleware("ExpensesMCP")])
+mcp = FastMCP("Expenses Tracker")
 
 
 class PaymentMethod(Enum):

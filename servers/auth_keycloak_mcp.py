@@ -27,8 +27,6 @@ from rich.console import Console
 from rich.logging import RichHandler
 from starlette.responses import JSONResponse
 
-from opentelemetry_middleware import OpenTelemetryMiddleware
-
 RUNNING_IN_PRODUCTION = os.getenv("RUNNING_IN_PRODUCTION", "false").lower() == "true"
 
 if not RUNNING_IN_PRODUCTION:
@@ -123,7 +121,7 @@ class UserAuthMiddleware(Middleware):
 
 
 # Create the MCP server
-mcp = FastMCP("Expenses Tracker", auth=auth, middleware=[OpenTelemetryMiddleware("ExpensesMCP"), UserAuthMiddleware()])
+mcp = FastMCP("Expenses Tracker", auth=auth, middleware=[UserAuthMiddleware()])
 
 
 class PaymentMethod(Enum):
